@@ -1,0 +1,180 @@
+/**
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ **/
+
+/**
+ * @file BasicHPolytopeND.ih
+ * @author Jacques-Olivier Lachaud (\c jacques-olivier.lachaud@univ-savoie.fr )
+ * Laboratory of Mathematics (CNRS, UMR 5127), University of Savoie, France
+ *
+ * @date 2012/12/06
+ *
+ * Implementation of inline methods defined in BasicHPolytopeND.h
+ *
+ * This file is part of the DGtal library.
+ */
+
+
+//////////////////////////////////////////////////////////////////////////////
+#include <cstdlib>
+#include "DGtal/kernel/NumberTraits.h"
+//////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// IMPLEMENTATION of inline methods.
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// ----------------------- Standard services ------------------------------
+
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+DGtal::BasicHPolytopeND<TVector>::ClosedHalfSpace::
+ClosedHalfSpace( const Vector & theNormal, Scalar theUpperBound )
+  : normal( theNormal ), upperBound( theUpperBound )
+{}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+typename DGtal::BasicHPolytopeND<TVector>::Scalar
+DGtal::BasicHPolytopeND<TVector>::ClosedHalfSpace::
+value( const Vector & v ) const
+{
+  return normal.dot( v ) - upperBound;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+bool
+DGtal::BasicHPolytopeND<TVector>::ClosedHalfSpace::
+operator()( const Vector & v ) const
+{
+  return value( v ) <= NumberTraits<Scalar>::ZERO;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+DGtal::BasicHPolytopeND<TVector>::~BasicHPolytopeND()
+{
+}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+DGtal::BasicHPolytopeND<TVector>::BasicHPolytopeND()
+{
+}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+DGtal::BasicHPolytopeND<TVector>::BasicHPolytopeND( const BasicHPolytopeND & other )
+  : myHalfSpaces( other.myHalfSpaces )
+{}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+typename DGtal::BasicHPolytopeND<TVector> &
+DGtal::BasicHPolytopeND<TVector>::operator= ( const BasicHPolytopeND & other )
+{
+  if ( this != &other )
+    myHalfSpaces = other.myHalfSpaces;
+  return *this;
+}
+
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+void
+DGtal::BasicHPolytopeND<TVector>::add( const ClosedHalfSpace & chs )
+{
+  myHalfSpaces.push_back( chs );
+}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+bool
+DGtal::BasicHPolytopeND<TVector>::operator()( const Vector & x ) const
+{
+  for ( ConstIterator it = myHalfSpaces.begin(), itE = myHalfSpaces.end();
+	( it != itE ); ++it )
+    {
+      if ( ! (*it)( x ) ) return false;
+    }
+  return true;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+bool
+DGtal::BasicHPolytopeND<TVector>::empty() const
+{
+  return myHalfSpaces.empty();
+}
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+typename DGtal::BasicHPolytopeND<TVector>::Size
+DGtal::BasicHPolytopeND<TVector>::size() const
+{
+  return myHalfSpaces.size();
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Interface - public :
+
+/**
+ * Writes/Displays the object on an output stream.
+ * @param out the output stream where the object is written.
+ */
+template <typename TVector>
+inline
+void
+DGtal::BasicHPolytopeND<TVector>::selfDisplay ( std::ostream & out ) const
+{
+  out << "[BasicHPolytopeND nH=" << size() << "]";
+}
+
+/**
+ * Checks the validity/consistency of the object.
+ * @return 'true' if the object is valid, 'false' otherwise.
+ */
+template <typename TVector>
+inline
+bool
+DGtal::BasicHPolytopeND<TVector>::isValid() const
+{
+    return true;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Implementation of inline functions                                        //
+
+template <typename TVector>
+inline
+std::ostream&
+DGtal::operator<< ( std::ostream & out, 
+		  const BasicHPolytopeND<TVector> & object )
+{
+  object.selfDisplay( out );
+  return out;
+}
+
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+
+

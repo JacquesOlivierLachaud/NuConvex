@@ -1,0 +1,149 @@
+/**
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ **/
+
+/**
+ * @file NuConvexSet.ih
+ * @author Jacques-Olivier Lachaud (\c jacques-olivier.lachaud@univ-savoie.fr )
+ * Laboratory of Mathematics (CNRS, UMR 5127), University of Savoie, France
+ *
+ * @date 2012/12/06
+ *
+ * Implementation of inline methods defined in NuConvexSet.h
+ *
+ * This file is part of the DGtal library.
+ */
+
+
+//////////////////////////////////////////////////////////////////////////////
+#include <cstdlib>
+//////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// IMPLEMENTATION of inline methods.
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// ----------------------- Standard services ------------------------------
+
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+inline
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+~NuConvexSet()
+{
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+inline
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+NuConvexSet( const Visitor & visitor, const VertexEmbedder & embedder )
+  : myVisitor( visitor ), myEmbedder( embedder )
+{
+  
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+void
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+init( InternalInteger p, InternalInteger q,
+      InternalInteger diameter )
+{
+  myPlane.init( diameter, p, q );
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+bool
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+compute( Scalar distanceUpperBound )
+{
+  if ( myVisitor.finished() ) return true;
+  std::vector<Node> layer;
+  typedef typename Space::Point Point;
+  std::vector<Point> points;
+  const Node & node = myVisitor.current();
+  while ( ( ! myVisitor.finished() )
+	  && ( ( distanceUpperBound < NumberTraits<Scalar>::ZERO )
+	       || ( node.second <= distanceUpperBound ) ) )
+    {
+      myVisitor.getCurrentLayer( layer );
+      points.clear();
+      for ( typename std::vector<Node>::const_iterator it = layer.begin(), itE = layer.end();
+	    it != itE; ++it )
+	{
+	  RealPoint p = myEmbedder( (*it).first );
+	  points.push_back( Point( p[ 0 ], p[ 1 ], p[ 2 ] ) );
+	}
+      bool extend = myPlane.extend( points.begin(), points.end() );
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Interface - public :
+
+/**
+ * Writes/Displays the object on an output stream.
+ * @param out the output stream where the object is written.
+ */
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+inline
+void
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+selfDisplay ( std::ostream & out ) const
+{
+  out << "[NuConvexSet]";
+}
+
+/**
+ * Checks the validity/consistency of the object.
+ * @return 'true' if the object is valid, 'false' otherwise.
+ */
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+inline
+bool
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+isValid() const
+{
+    return true;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Implementation of inline functions                                        //
+
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+inline
+std::ostream&
+DGtal::operator<< 
+( std::ostream & out, 
+  const NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger> & object )
+{
+  object.selfDisplay( out );
+  return out;
+}
+
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+
+
