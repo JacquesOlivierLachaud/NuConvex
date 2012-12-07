@@ -10,3 +10,6 @@ LINK_DIRECTORIES(${DGTAL_LIBRARY_DIRS})
 ADD_EXECUTABLE(convexcover convex-cover)
 TARGET_LINK_LIBRARIES(convexcover ${DGTAL_LIBRARIES})
 
+ADD_EXECUTABLE(convexnormals convex-normals)
+TARGET_LINK_LIBRARIES(convexnormals ${DGTAL_LIBRARIES})
+
