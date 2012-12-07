@@ -44,6 +44,7 @@
 #include "DGtal/base/Common.h"
 #include "DGtal/geometry/surfaces/COBAGenericNaivePlane.h"
 #include "BasicHPolytopeND.h"
+#include "MaximalPlaneSummary.h"
 //////////////////////////////////////////////////////////////////////////////
 
 namespace DGtal
@@ -166,6 +167,11 @@ namespace DGtal
 
     ConstIterator begin() const;
     ConstIterator end() const;
+
+    /**
+       @param mps the object that stores the geometric summary of the nu-convex set.
+    */
+    void summarize( MaximalPlaneSummary<Space> & mps ) const;
 
     // ----------------------- Interface --------------------------------------
   public:

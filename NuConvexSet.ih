@@ -212,6 +212,25 @@ end() const
 {
   return myVertices.end();
 }
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+inline
+void
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+summarize( MaximalPlaneSummary<Space> & mps ) const
+{
+  ASSERT( ! myVertices.empty() );
+  Point pcenter = myEmbedder( myVertices.front() );
+  for ( Dimension i = 0; i < Space::dimension; ++i )
+    mps.center[ i ] = pcenter[ i ];
+  mps.majorAxis = myPlane.active();
+  mps.radius = ( myEmbedder( myVertices.back() ) - pcenter ).norm();
+  myPlane.getUnitNormal( mps.normal );
+  myPlane.getBounds( mps.lower, mps.upper );
+  // TODO projectedArea;  /**< the area of the projected nu-convex set. */
+ 
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Interface - public :
