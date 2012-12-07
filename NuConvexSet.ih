@@ -52,7 +52,9 @@ template < typename TSpace, typename TVisitor,
 inline
 DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
 NuConvexSet( const Visitor & visitor, const VertexEmbedder & embedder )
-  : myVisitor( visitor ), myEmbedder( embedder )
+  : myVisitor( visitor ), myEmbedder( embedder ), myPolytope(),
+    myVertexPolytopePredicate( myPolytope, myEmbedder ),
+    myExtMode( true )
 {
   
 }
@@ -69,31 +71,147 @@ init( InternalInteger p, InternalInteger q,
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
 	   typename TVertexEmbedder, typename TInternalInteger >
+void
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+setExtensionMode( bool extMode )
+{
+  myExtMode = extMode;
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
 bool
 DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
 compute( Scalar distanceUpperBound )
 {
   if ( myVisitor.finished() ) return true;
+
+  // Stores the nodes at the same distance from the origin point.
   std::vector<Node> layer;
+  // Stores those nodes and their state. A list is required because
+  // vertices may reappear in the visitor in a different order.
+  std::list<NodeAndState> nodes_with_states;
+  typename std::list<NodeAndState>::iterator nsIt;
+  typename std::list<NodeAndState>::iterator nsItE = nodes_with_states.end(); 
+  // "Late" vertices are vertices which appear after others but which
+  // are closer. This may happen when the breadth-first traversal
+  // disagrees too much with the distance function.
+  std::vector<Node> lateLayer; 
   typedef typename Space::Point Point;
+  // Stores the points that are tested for the extension.
   std::vector<Point> points;
-  const Node & node = myVisitor.current();
-  while ( ( ! myVisitor.finished() )
-	  && ( ( distanceUpperBound < NumberTraits<Scalar>::ZERO )
-	       || ( node.second <= distanceUpperBound ) ) )
+  // Stores the first node of the layer.
+  Node node = myVisitor.current();
+  // The origin of the nu-convex set.
+  Point x0 = myEmbedder( node.first );
+  myPlane.extend( x0 );
+  // Computes the nu-convex set by testing vertices in the order given
+  // by the visitor.
+  while ( ! myVisitor.finished() )
     {
+      node = myVisitor.current();
+      if ( ( distanceUpperBound >= NumberTraits<Scalar>::ZERO )
+           && ( node.second > distanceUpperBound ) )
+        break;
+      // Get all vertices at same distance from x0.
       myVisitor.getCurrentLayer( layer );
+      // Classify vertices of the layer.
       points.clear();
-      for ( typename std::vector<Node>::const_iterator it = layer.begin(), itE = layer.end();
-	    it != itE; ++it )
+      for ( typename std::vector<Node>::const_iterator it = layer.begin(), 
+              itE = layer.end(); it != itE; ++it )
 	{
-	  RealPoint p = myEmbedder( (*it).first );
-	  points.push_back( Point( p[ 0 ], p[ 1 ], p[ 2 ] ) );
-	}
-      bool extend = myPlane.extend( points.begin(), points.end() );
+          VertexState vstate;
+          Point p = myEmbedder( (*it).first );
+          if ( myPolytope( p ) ) // Point is inside.
+            {
+              if ( myExtMode && myPlane.extendAsIs( p ) )
+                vstate = ExtendedAsIs;
+              else
+                {
+                  vstate = Extendable;
+                  points.push_back( p );
+                }
+            }
+          else
+            vstate = Rejected;
+          nodes_with_states.push_back( std::make_pair( *it, vstate ) );
+        }
+      // bool extend = myPlane.extend( points.begin(), points.end() );
+      bool extend = points.empty() 
+        ? true
+        : myPlane.extend( points.begin(), points.end() );
+      // If the points are within some nu-plane, we store them,
+      // otherwise we must add them to the constraint polytope.
+      while ( ! nodes_with_states.empty() )
+        {
+          Node n = myVisitor.current();
+          nsIt = nodes_with_states.begin();
+          while ( ( nsIt != nsItE ) && ( (*nsIt).first.first != n.first ) )
+            ++nsIt;
+          if ( nsIt == nsItE )
+            {
+              // std::cerr << " ! [" << n.first
+              //           << "," << n.second <<"] " << std::endl;
+              lateLayer.push_back( n );
+              myVisitor.ignore();
+            }
+          else
+            {
+              Vertex v = (*nsIt).first.first;
+              VertexState vstate = (*nsIt).second;
+              nodes_with_states.erase( nsIt );
+              if ( vstate == Rejected )
+                {
+                  myVisitor.ignore();
+                  myRejectedVertices.push_back( v );
+                }
+              else if ( extend || ( vstate == ExtendedAsIs ) )
+                {
+                  // then we can look for their neighbors.
+                  myVisitor.expand( myVertexPolytopePredicate );
+                  myVertices.push_back( v );
+                }
+              else // Extendable && ! extend
+                {
+                  myVisitor.ignore();
+                  Point p = myEmbedder( v );
+                  myPolytope.add( ClosedHalfSpace( p - x0, p.dot( p - x0 ) ) );
+                  myRejectedVertices.push_back( v );
+                }
+            }
+        }
+      // Push back "late" vertices in the visitor.
+      for ( typename std::vector<Node>::const_iterator 
+              it = lateLayer.begin(), 
+              itE = lateLayer.end(); it != itE; ++it )
+        {
+          myVisitor.pushAgain( *it );
+        }
+      lateLayer.clear();
     }
+  return myVisitor.finished();
 }
 
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+inline
+typename DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::ConstIterator
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+begin() const
+{
+  return myVertices.begin();
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertexEmbedder, typename TInternalInteger >
+inline
+typename DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::ConstIterator
+DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+end() const
+{
+  return myVertices.end();
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Interface - public :

@@ -4,6 +4,7 @@
 #include "DGtal/base/Lambda2To1.h"
 #include "DGtal/kernel/SquaredEuclideanDistance.h"
 #include "DGtal/kernel/CanonicSCellEmbedder.h"
+#include "DGtal/topology/BreadthFirstVisitor.h"
 #include "DGtal/topology/DistanceVisitor.h"
 #include "DGtal/topology/DigitalSurface.h"
 #include "DGtal/topology/LightImplicitDigitalSurface.h"
@@ -13,6 +14,7 @@
 #include "DGtal/images/imagesSetsUtils/SetFromImage.h"
 #include "BasicHPolytopeND.h"
 #include "NuConvexSet.h"
+#include "DigitalSurface2InnerPointFunctor.h"
 
 template <typename TVector>
 bool viewHPolytope( Viewer3D & viewer )
@@ -41,7 +43,10 @@ bool viewHPolytope( Viewer3D & viewer )
 template <typename DigitalSurface, typename VertexEmbedder >
 bool viewNuConvexSet( Viewer3D & viewer,
 		      const DigitalSurface & digSurf, 
-		      const VertexEmbedder & embedder )
+		      const VertexEmbedder & embedder,
+                      unsigned int nup,
+                      unsigned int nuq,
+                      typename DigitalSurface::Vertex p )
 {
   typedef DigitalSurface Graph;
   typedef typename DigitalSurface::KSpace KSpace;
@@ -56,21 +61,36 @@ bool viewNuConvexSet( Viewer3D & viewer,
 
   typedef NuConvexSet< Space, Visitor, VertexEmbedder, DGtal::int64_t > MyNuConvexSet;
   
-  Vertex p = *( digSurf.begin() );
   SqED sqed;
   SqEDToPoint distanceToPoint( sqed, embedder( p ) );
   VertexFunctor vfunctor( embedder, distanceToPoint );
   // DistanceVisitor< Graph, VertexFunctor > visitor( g, p, vfunctor );
-
+  const KSpace & ks = digSurf.container().space();
   MyNuConvexSet nuConvex( Visitor( digSurf, vfunctor, p ), embedder );
-  nuConvex.init( 1, 1, 100 );
+  nuConvex.setExtensionMode( false );
+  nuConvex.init( nup, nuq, 400 );
   nuConvex.compute( -1.0 );
+  viewer << CustomColors3D( Color::White, Color::White ) 
+         << ks.unsigns( p );
+  unsigned int nb = 0;
+  Color c( random() % 256, random() % 256, random() % 256 );
+  for ( typename MyNuConvexSet::ConstIterator it = nuConvex.begin(),
+          itE = nuConvex.end(); it != itE; ++it, ++nb )
+    viewer << CustomColors3D( Color::Black, c )
+           << ks.unsigns( *it );
+  std::cerr << "nu-convex has " << nb << " surfels." << std::endl;
+  unsigned int nb2 = 0;
+  for ( typename MyNuConvexSet::ConstIterator it = nuConvex.myRejectedVertices.begin(),
+          itE = nuConvex.myRejectedVertices.end(); it != itE; ++it, ++nb2 )
+    viewer << CustomColors3D( Color::Black, Color::Blue ) 
+           << ks.unsigns( *it );
+  std::cerr << "nu-convex has " << nb2 << " rejected surfels." << std::endl;
   return true;
 }
 
 void usage( int, char** argv )
 {
-  std::cerr << "Usage: " << argv[ 0 ] << " <fileName.vol> <minT> <maxT>" << std::endl;
+  std::cerr << "Usage: " << argv[ 0 ] << " <fileName.vol> <minT> <maxT> <p> <q> <n>" << std::endl;
   std::cerr << "\t - displays the boundary of the shape stored in vol file <fileName.vol>." << std::endl;
   std::cerr << "\t - voxel v belongs to the shape iff its value I(v) follows minT <= I(v) <= maxT." << std::endl;
 }
@@ -90,7 +110,10 @@ int main( int argc, char** argv )
   std::string inputFilename = argv[ 1 ];
   unsigned int minThreshold = atoi( argv[ 2 ] );
   unsigned int maxThreshold = atoi( argv[ 3 ] );
-
+  unsigned int p = argc >= 5 ? atoi( argv[ 4 ] ) : 1;
+  unsigned int q = argc >= 6 ? atoi( argv[ 5 ] ) : 1;
+  unsigned int n = argc >= 7 ? atoi( argv[ 6 ] ) : 0;
+  unsigned int step = argc >= 8 ? atoi( argv[ 7 ] ) : 500;
   //! [volDistanceTraversal-readVol]
   trace.beginBlock( "Reading vol file into an image." );
   using namespace Z3i;
@@ -133,14 +156,26 @@ int main( int argc, char** argv )
   trace.endBlock();
   //! [volDistanceTraversal-SetUpDigitalSurface]
 
-  typedef CanonicSCellEmbedder<KSpace> VertexEmbedder;
-  VertexEmbedder embedder( ks );
-  
-  viewNuConvexSet( viewer, digSurf, embedder );
+  typedef DigitalSurface2InnerPointFunctor<MyDigitalSurface> VertexEmbedder;
+  VertexEmbedder embedder( digSurf );
+  MyDigitalSurface::ConstIterator it = digSurf.begin();
+  MyDigitalSurface::ConstIterator itE = digSurf.end();
+  for ( unsigned int i = 0; ( it != itE ) && ( i < n ); ++i )
+    ++it;
+  while ( it != itE )
+    {
+      viewNuConvexSet( viewer, digSurf, embedder, p, q, *it );
+      for ( unsigned int i = 0; ( it != itE ) && ( i < step ); ++i )
+        ++it;
+    }
+  for ( MyDigitalSurface::ConstIterator it = digSurf.begin(),
+          itE = digSurf.end(); it != itE; ++it )
+    viewer << CustomColors3D( Color::Black, Color::White ) 
+           << ks.unsigns( *it );
 
   // typedef SpaceND<3>::Vector Vector;
   // bool ok = viewHPolytope<Vector>( viewer );
-  // viewer<< Viewer3D::updateDisplay;
-  // application.exec();
+  viewer<< Viewer3D::updateDisplay;
+  application.exec();
   return true ? 0 : 1;
 }

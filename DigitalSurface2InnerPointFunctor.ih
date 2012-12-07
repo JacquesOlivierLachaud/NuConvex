@@ -1,0 +1,143 @@
+/**
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ **/
+
+/**
+ * @file DigitalSurface2InnerPointFunctor.ih
+ * @author Jacques-Olivier Lachaud (\c jacques-olivier.lachaud@univ-savoie.fr )
+ * Laboratory of Mathematics (CNRS, UMR 5127), University of Savoie, France
+ *
+ * @date 2012/02/28
+ *
+ * Implementation of inline methods defined in DigitalSurface2InnerPointFunctor.h
+ *
+ * This file is part of the DGtal library.
+ */
+
+///////////////////////////////////////////////////////////////////////////////
+// IMPLEMENTATION of inline methods.
+///////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////
+#include <cstdlib>
+#include <cmath>
+#include "DGtal/kernel/NumberTraits.h"
+//////////////////////////////////////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Implementation of inline methods                                          //
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::
+~DigitalSurface2InnerPointFunctor()
+{}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::
+DigitalSurface2InnerPointFunctor()
+  : mySurface( 0 )
+{}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::
+DigitalSurface2InnerPointFunctor( const Surface & aSurface )
+  : mySurface( &aSurface )
+{}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::
+DigitalSurface2InnerPointFunctor( const Self & other )
+  : mySurface( other.mySurface )
+{}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+typename DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::Self &
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::
+operator=( const Self & other )
+{
+  mySurface = other.mySurface;
+  return *this;
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+const typename DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::Surface &
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::surface() const
+{
+  ASSERT( this->isValid() );
+  return *mySurface;
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+typename DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::Point
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::
+embed( const SCell & scell ) const
+{
+  return this->operator()( scell );
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+typename DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::Point
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::
+operator()( const SCell & scell ) const
+{
+  ASSERT( this->isValid() );
+  const KSpace & ks = mySurface->container().space();
+  // Dimension k = ks.sOrthDir( scell );
+  // SCell innerSpel = ks.sIncident( scell, k, ks.sDirect( scell, k ) );
+  SCell innerSpel = ks.sDirectIncident( scell, ks.sOrthDir( scell ) );
+  return ks.sCoords( innerSpel );
+  // return ks.sKCoords( scell );
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface>
+inline
+bool
+DGtal::DigitalSurface2InnerPointFunctor<TDigitalSurface>::isValid( ) const
+{
+  return mySurface != 0;
+}
+///////////////////////////////////////////////////////////////////////////////
+// Implementation of inline functions and external operators                 //
+
+/**
+ * Overloads 'operator<<' for displaying objects of class 'DigitalSurface2InnerPointFunctor'.
+ * @param out the output stream where the object is written.
+ * @param object the object of class 'DigitalSurface2InnerPointFunctor' to write.
+ * @return the output stream after the writing.
+ */
+template <typename TDigitalSurface>
+inline
+std::ostream&
+DGtal::operator<< ( std::ostream & out,
+                    const DigitalSurface2InnerPointFunctor<TDigitalSurface> & object )
+{
+    object.selfDisplay ( out );
+    return out;
+}
+
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+
+

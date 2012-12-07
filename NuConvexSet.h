@@ -71,13 +71,62 @@ namespace DGtal
     BOOST_STATIC_ASSERT(( ConceptUtils::SameType
 			   < Vertex, typename VertexEmbedder::Argument >::value ));
     typedef COBAGenericNaivePlane< Space, InternalInteger > GenericNaivePlane;
-    typedef typename VertexEmbedder::Value RealPoint;
-    typedef typename RealPoint::Coordinate Scalar;
-    typedef RealPoint RealVector;
-    typedef BasicHPolytopeND<RealVector> HPolytope;
+    typedef typename VertexEmbedder::Value Point;
+    typedef typename Point::Coordinate Scalar;
+    typedef Point Vector;
+    typedef BasicHPolytopeND<Vector> HPolytope;
+    typedef typename HPolytope::ClosedHalfSpace ClosedHalfSpace;
     typedef typename Visitor::Node Node;     // vertex
     typedef typename Visitor::Scalar Distance; // distance
 
+    typedef std::vector<Vertex> Container;
+    typedef typename Container::const_iterator ConstIterator;
+
+    class VertexPolytopePredicateAdapter
+    {
+    public:
+      typedef HPolytope PointPredicate;
+      typedef typename VertexEmbedder::Argument Vertex;
+      typedef typename VertexEmbedder::Value Point;
+
+      inline
+      VertexPolytopePredicateAdapter( const PointPredicate & pPred,
+                                      const VertexEmbedder & embedder )
+        : myPPred( &pPred ), myEmbedder( &embedder )
+      {}
+
+      inline
+      VertexPolytopePredicateAdapter( const VertexPolytopePredicateAdapter & other )
+        : myPPred( other.myPPred ), myEmbedder( other.myEmbedder )
+      {}
+
+      inline
+      VertexPolytopePredicateAdapter &
+      operator=( const VertexPolytopePredicateAdapter & other )
+      {
+        if ( this != &other )
+          {
+            myPPred = other.myPPred;
+            myEmbedder = other.myEmbedder;
+          }
+        return *this;
+      }
+      
+      inline
+      bool operator()( const Vertex & v ) const
+      {
+        return (*myPPred)( (*myEmbedder)( v ) ); 
+      }
+
+    private:
+      const PointPredicate* myPPred;
+      const VertexEmbedder* myEmbedder;
+      
+    };
+
+  private:
+    enum VertexState { Rejected, ExtendedAsIs, Extendable }; 
+    typedef std::pair<Node,VertexState> NodeAndState;
 
     // ----------------------- Standard services ------------------------------
   public:
@@ -95,6 +144,17 @@ namespace DGtal
     NuConvexSet( const Visitor & visitor, const VertexEmbedder & embedder );
 
     /**
+       Default extension mode is true.
+       
+       @param extMode when 'true', the nu-convex set considers first
+       vertices that are in the current nu-width plane, and only after
+       it tries to find a nu-width plane that contains also the other
+       potential vertices ; when 'false', the nu-convex set considers
+       all potential vertices at the same time to find a nu-width
+       plane.*/ 
+    void setExtensionMode( bool extMode );
+
+    /**
        The start vertex is given by the visitor.
        nu = p/q
        @param diameter the diameter is necessary for COBA digital plane algorithm.
@@ -104,6 +164,8 @@ namespace DGtal
 
     bool compute( Scalar distanceUpperBound = -1 );
 
+    ConstIterator begin() const;
+    ConstIterator end() const;
 
     // ----------------------- Interface --------------------------------------
   public:
@@ -130,6 +192,11 @@ namespace DGtal
     const VertexEmbedder & myEmbedder;
     GenericNaivePlane myPlane;
     HPolytope myPolytope;
+    VertexPolytopePredicateAdapter myVertexPolytopePredicate;
+    Container myVertices;
+    bool myExtMode;
+  public:
+    Container myRejectedVertices;
 
     // ------------------------- Hidden services ------------------------------
   protected:

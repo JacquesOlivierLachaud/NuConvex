@@ -62,7 +62,7 @@ bool
 DGtal::BasicHPolytopeND<TVector>::ClosedHalfSpace::
 operator()( const Vector & v ) const
 {
-  return value( v ) <= NumberTraits<Scalar>::ZERO;
+  return value( v ) < NumberTraits<Scalar>::ZERO;
 }
 //-----------------------------------------------------------------------------
 template <typename TVector>
