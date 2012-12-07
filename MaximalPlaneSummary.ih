@@ -97,7 +97,11 @@ inline
 void
 DGtal::MaximalPlaneSummary<TSpace>::selfDisplay ( std::ostream & out ) const
 {
-  out << "[MaximalPlaneSummary]";
+  out << "[MaximalPlaneSummary" 
+      << " center=" << center << " mAxis=" << majorAxis
+      << " radius=" << radius << " normal=" << normal
+      << " upper=" << upper << " lower=" << lower
+      << " pArea=" << projectedArea << " ]";
 }
 
 /**

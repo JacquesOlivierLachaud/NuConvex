@@ -40,6 +40,31 @@ bool viewHPolytope( Viewer3D & viewer )
   return true;
 }
 
+template <typename DigitalSurface>
+struct SurfelAreaEstimator
+{
+  typedef typename DigitalSurface::Vertex Vertex;
+  typedef typename DigitalSurface::KSpace KSpace;
+  typedef typename KSpace::Space Space;
+  typedef typename Space::RealPoint RealPoint;
+  typedef typename Space::RealVector RealVector;
+  typedef typename RealVector::Component Scalar;
+  SurfelAreaEstimator( const DigitalSurface & digSurf )
+    : myDigSurf( digSurf )
+  {}
+  inline
+  Scalar operator()( const Vertex & v, const RealVector & n ) const
+  {
+    const KSpace & ks = myDigSurf.container().space();
+    Dimension k = ks.sOrthDir( v );
+    bool direct = ks.sDirect( v, k );
+    // normal toward outside. 
+    return direct ? n[ k ] : -n[ k ];
+  }
+  
+  const DigitalSurface & myDigSurf;
+};
+
 template <typename DigitalSurface, typename VertexEmbedder >
 bool viewNuConvexSet( Viewer3D & viewer,
 		      const DigitalSurface & digSurf, 
@@ -85,6 +110,11 @@ bool viewNuConvexSet( Viewer3D & viewer,
     viewer << CustomColors3D( Color::Black, Color::Blue ) 
            << ks.unsigns( *it );
   std::cerr << "nu-convex has " << nb2 << " rejected surfels." << std::endl;
+  SurfelAreaEstimator<DigitalSurface> areaEstimator( digSurf );
+  MaximalPlaneSummary<Space> mps;
+  nuConvex.summarize( mps, areaEstimator );
+  std::cerr << mps << std::endl;
+  
   return true;
 }
 

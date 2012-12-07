@@ -215,10 +215,12 @@ end() const
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
 	   typename TVertexEmbedder, typename TInternalInteger >
+template < typename VertexProjector >
 inline
 void
 DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
-summarize( MaximalPlaneSummary<Space> & mps ) const
+summarize( MaximalPlaneSummary<Space> & mps, 
+           const VertexProjector & vProjector ) const
 {
   ASSERT( ! myVertices.empty() );
   Point pcenter = myEmbedder( myVertices.front() );
@@ -228,8 +230,20 @@ summarize( MaximalPlaneSummary<Space> & mps ) const
   mps.radius = ( myEmbedder( myVertices.back() ) - pcenter ).norm();
   myPlane.getUnitNormal( mps.normal );
   myPlane.getBounds( mps.lower, mps.upper );
-  // TODO projectedArea;  /**< the area of the projected nu-convex set. */
- 
+  mps.projectedArea = 0.0;  /**< the area of the projected nu-convex set. */
+  for ( ConstIterator it = begin(), itE = end(); it != itE; ++it )
+    {
+      mps.projectedArea += vProjector( *it, mps.normal ); 
+    }
+  if ( mps.projectedArea < 0 )
+    {
+      typedef typename MaximalPlaneSummary<Space>::RealVector RealVector;
+      mps.normal = RealVector() - mps.normal;
+      std::swap( mps.lower, mps.upper );
+      mps.lower = -mps.lower;
+      mps.upper = -mps.upper;
+      mps.projectedArea = -mps.projectedArea;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

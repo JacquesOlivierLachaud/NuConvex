@@ -170,8 +170,16 @@ namespace DGtal
 
     /**
        @param mps the object that stores the geometric summary of the nu-convex set.
+
+       @param vArea an instance of VertexAreaEstimator that is a
+       functor (Vertex,RealVector)->Scalar giving the estimated projected area of
+       the given vertex under the given angle.
+
+       @tparam VertexAreaEstimator A model of a functor (Vertex,RealVector)->Scalar.
     */
-    void summarize( MaximalPlaneSummary<Space> & mps ) const;
+    template <typename VertexAreaEstimator>
+    void summarize( MaximalPlaneSummary<Space> & mps,
+                    const VertexAreaEstimator & vArea ) const;
 
     // ----------------------- Interface --------------------------------------
   public:
