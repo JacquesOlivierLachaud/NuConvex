@@ -15,6 +15,7 @@
 #include "BasicHPolytopeND.h"
 #include "NuConvexSet.h"
 #include "DigitalSurface2InnerPointFunctor.h"
+#include "TangentialCover.h"
 
 
 typedef float Vec3f[ 3 ];
@@ -156,6 +157,37 @@ void outputNuConvexSetNormals( ostream & out,
     }
 }
 
+template < typename DigitalSurface, 
+           typename VertexEmbedder >
+void outputNuConvexSetNormals2( ostream & out,
+                                const DigitalSurface & digSurf, 
+                                const VertexEmbedder & embedder,
+                                unsigned int nup,
+                                unsigned int nuq,
+                                unsigned int nbMax )
+{
+  typedef TangentialCover<DigitalSurface,VertexEmbedder, DGtal::int64_t>
+    MyTangentialCover;
+  typedef typename DigitalSurface::KSpace KSpace;
+  typedef typename KSpace::Space::RealVector RealVector;
+  typedef typename DigitalSurface::Vertex Vertex;
+  const KSpace & ks = digSurf.container().space();
+  MyTangentialCover tgtCover;
+  tgtCover.init( digSurf, embedder, nup, nuq, 400 );
+  tgtCover.compute( nbMax );
+  Color color( 150, 150, 180 );
+  RealVector normal;
+  for ( typename DigitalSurface::ConstIterator 
+          it = digSurf.begin(), itE = digSurf.end();
+        it != itE; ++it )
+    {
+      Vertex p = *it;
+      tgtCover.getEstimatedNormal( normal, p, MyTangentialCover::SimpleAveraging );
+      outputCellInColorWithNormal( out, 
+                                   ks, p, color, normal );
+    }
+}
+
 void usage( int, char** argv )
 {
   std::cerr << "Usage: " << argv[ 0 ] << " <fileName.vol> <minT> <maxT> <p> <q> <n>" << std::endl;
@@ -176,6 +208,7 @@ int main( int argc, char** argv )
   unsigned int maxThreshold = atoi( argv[ 3 ] );
   unsigned int p = argc >= 5 ? atoi( argv[ 4 ] ) : 1;
   unsigned int q = argc >= 6 ? atoi( argv[ 5 ] ) : 1;
+  unsigned int nbMax = argc >= 7 ? atoi( argv[ 6 ] ) : 1;
   //! [volDistanceTraversal-readVol]
   trace.beginBlock( "Reading vol file into an image." );
   using namespace Z3i;
@@ -221,7 +254,7 @@ int main( int argc, char** argv )
   typedef DigitalSurface2InnerPointFunctor<MyDigitalSurface> VertexEmbedder;
   VertexEmbedder embedder( digSurf );
   ofstream outFile( "titi.txt" );
-  outputNuConvexSetNormals( outFile, digSurf, embedder, p, q );
+  outputNuConvexSetNormals2( outFile, digSurf, embedder, p, q, nbMax );
   outFile.close();
   return true ? 0 : 1;
 }

@@ -53,11 +53,20 @@ namespace DGtal
   /////////////////////////////////////////////////////////////////////////////
   // template class NuConvexSet
   /**
-   * Description of template class 'NuConvexSet' <p>
-   * \brief Aim:
+     Description of template class 'NuConvexSet' <p> \brief Aim:
+     Nu-convex sets aim at mimicking maximal digital straight segments
+     on surfaces (in fact, any graph) in Z^3. A nu-convex set has a
+     starting vertex, called its center. Then it grows isotropically
+     from the center and determines at each step if its width is no
+     greater than parameter nu. If at some point, added vertices
+     induce a too long width, then problematic vertices are added as
+     orthogonal constraints. The nu-convex set continues to grow but
+     ignores vertices that are outside the current set of constraints
+     (which is by construction a convex set). When no other vertices
+     can be added, the nu-convex set is formed.
    */
   template < typename TSpace, typename TVisitor,
-	     typename TVertexEmbedder, 
+	     typename TVertex2PointFunctor, 
 	     typename TInternalInteger = DGtal::int64_t >
   class NuConvexSet
   {
@@ -66,13 +75,13 @@ namespace DGtal
     typedef TSpace Space;
     typedef TVisitor Visitor;
     typedef TInternalInteger InternalInteger;
-    typedef TVertexEmbedder VertexEmbedder;
+    typedef TVertex2PointFunctor Vertex2PointFunctor;
     typedef typename Visitor::Vertex Vertex;
 
     BOOST_STATIC_ASSERT(( ConceptUtils::SameType
-			   < Vertex, typename VertexEmbedder::Argument >::value ));
+			   < Vertex, typename Vertex2PointFunctor::Argument >::value ));
     typedef COBAGenericNaivePlane< Space, InternalInteger > GenericNaivePlane;
-    typedef typename VertexEmbedder::Value Point;
+    typedef typename Vertex2PointFunctor::Value Point;
     typedef typename Point::Coordinate Scalar;
     typedef Point Vector;
     typedef BasicHPolytopeND<Vector> HPolytope;
@@ -87,18 +96,18 @@ namespace DGtal
     {
     public:
       typedef HPolytope PointPredicate;
-      typedef typename VertexEmbedder::Argument Vertex;
-      typedef typename VertexEmbedder::Value Point;
+      typedef typename Vertex2PointFunctor::Argument Vertex;
+      typedef typename Vertex2PointFunctor::Value Point;
 
       inline
       VertexPolytopePredicateAdapter( const PointPredicate & pPred,
-                                      const VertexEmbedder & embedder )
-        : myPPred( &pPred ), myEmbedder( &embedder )
+                                      const Vertex2PointFunctor & vtx2pt )
+        : myPPred( &pPred ), myVtx2PointFct( &vtx2pt )
       {}
 
       inline
       VertexPolytopePredicateAdapter( const VertexPolytopePredicateAdapter & other )
-        : myPPred( other.myPPred ), myEmbedder( other.myEmbedder )
+        : myPPred( other.myPPred ), myVtx2PointFct( other.myVtx2PointFct )
       {}
 
       inline
@@ -108,7 +117,7 @@ namespace DGtal
         if ( this != &other )
           {
             myPPred = other.myPPred;
-            myEmbedder = other.myEmbedder;
+            myVtx2PointFct = other.myVtx2PointFct;
           }
         return *this;
       }
@@ -116,12 +125,19 @@ namespace DGtal
       inline
       bool operator()( const Vertex & v ) const
       {
-        return (*myPPred)( (*myEmbedder)( v ) ); 
+        return (*myPPred)( (*myVtx2PointFct)( v ) ); 
+      }
+
+      inline
+      void swap( VertexPolytopePredicateAdapter & other )
+      {
+        std::swap( myPPred, other.myPPred );
+        std::swap( myVtx2PointFct, other.myVtx2PointFct );
       }
 
     private:
       const PointPredicate* myPPred;
-      const VertexEmbedder* myEmbedder;
+      const Vertex2PointFunctor* myVtx2PointFct;
       
     };
 
@@ -140,9 +156,9 @@ namespace DGtal
     /**
        Constructor.
        @param visitor the visitor is duplicated.
-       @param embedder the embedder is referenced.
+       @param vtx2pt the vtx2pt is aliased.
      */
-    NuConvexSet( const Visitor & visitor, const VertexEmbedder & embedder );
+    NuConvexSet( const Visitor & visitor, const Vertex2PointFunctor & vtx2pt );
 
     /**
        Default extension mode is true.
@@ -154,6 +170,12 @@ namespace DGtal
        all potential vertices at the same time to find a nu-width
        plane.*/ 
     void setExtensionMode( bool extMode );
+
+    /**
+       Uses the given Vertex2PointFunctor to return the vertex coordinates.
+       @param v any vertex.
+    */
+    Point coordinates( const Vertex & v ) const;
 
     /**
        The start vertex is given by the visitor.
@@ -181,6 +203,12 @@ namespace DGtal
     void summarize( MaximalPlaneSummary<Space> & mps,
                     const VertexAreaEstimator & vArea ) const;
 
+    /**
+       Exchange the data of 'this' with the data of 'other'.
+       @param other (modified) the other instance which is exchanged with 'this'.
+    */
+    void swap( NuConvexSet & other );
+
     // ----------------------- Interface --------------------------------------
   public:
 
@@ -203,7 +231,7 @@ namespace DGtal
   private:
 
     Visitor myVisitor;
-    const VertexEmbedder & myEmbedder;
+    const Vertex2PointFunctor* myVtx2PointFct;
     GenericNaivePlane myPlane;
     HPolytope myPolytope;
     VertexPolytopePredicateAdapter myVertexPolytopePredicate;
@@ -251,11 +279,11 @@ namespace DGtal
    * @return the output stream after the writing.
    */
   template < typename TSpace, typename TVisitor,
-	     typename TVertexEmbedder, 
+	     typename TVertex2PointFunctor, 
 	     typename TInternalInteger >
   std::ostream&
   operator<< ( std::ostream & out, 
-	       const NuConvexSet< TSpace, TVisitor, TVertexEmbedder, TInternalInteger > & object );
+	       const NuConvexSet< TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger > & object );
 
 } // namespace DGtal
 

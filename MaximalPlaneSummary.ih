@@ -67,6 +67,24 @@ DGtal::MaximalPlaneSummary<TSpace>::MaximalPlaneSummary
 //-----------------------------------------------------------------------------
 template <typename TSpace>
 inline
+DGtal::MaximalPlaneSummary<TSpace> &
+DGtal::MaximalPlaneSummary<TSpace>::operator= ( const MaximalPlaneSummary & other )
+{
+  if ( this != &other )
+    {
+      center = other.center;
+      majorAxis = other.majorAxis;
+      radius = other.radius;
+      normal = other.normal;
+      upper = other.upper;
+      lower = other.lower;
+      projectedArea = other.projectedArea;
+    }
+  return *this;
+}
+//-----------------------------------------------------------------------------
+template <typename TSpace>
+inline
 typename DGtal::MaximalPlaneSummary<TSpace>::RealPoint
 DGtal::MaximalPlaneSummary<TSpace>::
 projectOntoUpperPlane( const RealPoint & p ) const

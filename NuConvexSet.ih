@@ -40,29 +40,30 @@
 
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 inline
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 ~NuConvexSet()
 {
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 inline
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
-NuConvexSet( const Visitor & visitor, const VertexEmbedder & embedder )
-  : myVisitor( visitor ), myEmbedder( embedder ), myPolytope(),
-    myVertexPolytopePredicate( myPolytope, myEmbedder ),
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
+NuConvexSet( const Visitor & visitor, const Vertex2PointFunctor & vtx2pt )
+  : myVisitor( visitor ), myVtx2PointFct( &vtx2pt ), myPolytope(),
+    myVertexPolytopePredicate( myPolytope, vtx2pt ),
     myExtMode( true )
 {
   
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
+inline
 void
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 init( InternalInteger p, InternalInteger q,
       InternalInteger diameter )
 {
@@ -70,18 +71,29 @@ init( InternalInteger p, InternalInteger q,
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
+inline
 void
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 setExtensionMode( bool extMode )
 {
   myExtMode = extMode;
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
+inline
+typename DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::Point
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
+coordinates( const Vertex & v ) const
+{
+  return (*myVtx2PointFct)( v );
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 bool
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 compute( Scalar distanceUpperBound )
 {
   if ( myVisitor.finished() ) return true;
@@ -103,7 +115,7 @@ compute( Scalar distanceUpperBound )
   // Stores the first node of the layer.
   Node node = myVisitor.current();
   // The origin of the nu-convex set.
-  Point x0 = myEmbedder( node.first );
+  Point x0 = coordinates( node.first );
   myPlane.extend( x0 );
   // Computes the nu-convex set by testing vertices in the order given
   // by the visitor.
@@ -121,7 +133,7 @@ compute( Scalar distanceUpperBound )
               itE = layer.end(); it != itE; ++it )
 	{
           VertexState vstate;
-          Point p = myEmbedder( (*it).first );
+          Point p = coordinates( (*it).first );
           if ( myPolytope( p ) ) // Point is inside.
             {
               if ( myExtMode && myPlane.extendAsIs( p ) )
@@ -174,7 +186,7 @@ compute( Scalar distanceUpperBound )
               else // Extendable && ! extend
                 {
                   myVisitor.ignore();
-                  Point p = myEmbedder( v );
+                  Point p = coordinates( v );
                   myPolytope.add( ClosedHalfSpace( p - x0, p.dot( p - x0 ) ) );
                   myRejectedVertices.push_back( v );
                 }
@@ -194,40 +206,40 @@ compute( Scalar distanceUpperBound )
 
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 inline
-typename DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::ConstIterator
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+typename DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::ConstIterator
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 begin() const
 {
   return myVertices.begin();
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 inline
-typename DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::ConstIterator
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+typename DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::ConstIterator
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 end() const
 {
   return myVertices.end();
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 template < typename VertexProjector >
 inline
 void
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 summarize( MaximalPlaneSummary<Space> & mps, 
            const VertexProjector & vProjector ) const
 {
   ASSERT( ! myVertices.empty() );
-  Point pcenter = myEmbedder( myVertices.front() );
+  Point pcenter = coordinates( myVertices.front() );
   for ( Dimension i = 0; i < Space::dimension; ++i )
     mps.center[ i ] = pcenter[ i ];
   mps.majorAxis = myPlane.active();
-  mps.radius = ( myEmbedder( myVertices.back() ) - pcenter ).norm();
+  mps.radius = ( coordinates( myVertices.back() ) - pcenter ).norm();
   myPlane.getUnitNormal( mps.normal );
   myPlane.getBounds( mps.lower, mps.upper );
   mps.projectedArea = 0.0;  /**< the area of the projected nu-convex set. */
@@ -245,6 +257,23 @@ summarize( MaximalPlaneSummary<Space> & mps,
       mps.projectedArea = -mps.projectedArea;
     }
 }
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertex2PointFunctor, typename TInternalInteger >
+inline
+void
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
+swap( NuConvexSet & other )
+{
+  myVisitor.swap( other.myVisitor );
+  std::swap( myVtx2PointFct, other.myVtx2PointFct );
+  myPlane.swap( other.myPlane );
+  myPolytope.swap( other.myPolytope );
+  myVertexPolytopePredicate.swap( other.myVertexPolytopePredicate );
+  myVertices.swap( other.myVertices );
+  std::swap( myExtMode, other.myExtMode );
+  myRejectedVertices.swap( other.myRejectedVertices );
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Interface - public :
@@ -254,10 +283,10 @@ summarize( MaximalPlaneSummary<Space> & mps,
  * @param out the output stream where the object is written.
  */
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 inline
 void
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 selfDisplay ( std::ostream & out ) const
 {
   out << "[NuConvexSet]";
@@ -268,10 +297,10 @@ selfDisplay ( std::ostream & out ) const
  * @return 'true' if the object is valid, 'false' otherwise.
  */
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 inline
 bool
-DGtal::NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger>::
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 isValid() const
 {
     return true;
@@ -283,12 +312,12 @@ isValid() const
 // Implementation of inline functions                                        //
 
 template < typename TSpace, typename TVisitor,
-	   typename TVertexEmbedder, typename TInternalInteger >
+	   typename TVertex2PointFunctor, typename TInternalInteger >
 inline
 std::ostream&
 DGtal::operator<< 
 ( std::ostream & out, 
-  const NuConvexSet<TSpace, TVisitor, TVertexEmbedder, TInternalInteger> & object )
+  const NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger> & object )
 {
   object.selfDisplay( out );
   return out;

@@ -1,0 +1,367 @@
+/**
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ **/
+
+/**
+ * @file TangentialCover.ih
+ * @author Jacques-Olivier Lachaud (\c jacques-olivier.lachaud@univ-savoie.fr )
+ * Laboratory of Mathematics (CNRS, UMR 5127), University of Savoie, France
+ *
+ * @date 2012/12/09
+ *
+ * Implementation of inline methods defined in TangentialCover.h
+ *
+ * This file is part of the DGtal library.
+ */
+
+
+//////////////////////////////////////////////////////////////////////////////
+#include <cstdlib>
+//////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// IMPLEMENTATION of inline methods.
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// ----------------------- Standard services ------------------------------
+
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+~TangentialCover()
+{
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+TangentialCover()
+  : myDigSurf( 0 ), myVtx2PtFct( 0 )
+{
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+const typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::DigitalSurface &
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+surface() const
+{
+  ASSERT( isValid() );
+  return *myDigSurf;
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::Point
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+coordinates( const Vertex & v ) const
+{
+  ASSERT( isValid() );
+  return (*myVtx2PtFct)( v );
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+init( const DigitalSurface & digSurf,
+      const Vertex2PointFunctor & v2pFct,
+      InternalInteger p, InternalInteger q,
+      InternalInteger diameter )
+{
+  clear();
+  myDigSurf = &digSurf;
+  myVtx2PtFct = &v2pFct;
+  myP = p; myQ = q;
+  myDiameter = diameter;
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+compute( unsigned int nbMaxPerVertex, bool extensionMode )
+{
+  ASSERT( isValid() );
+  clear(); // make sure members are empty
+  myNbMaxPerVertex = nbMaxPerVertex;
+  Index mp = 0; // Index of the current maximal plane.
+  SurfelAreaEstimator areaEstimator( surface() );
+  SqED sqed;
+  for ( typename DigitalSurface::ConstIterator 
+          it = surface().begin(), itE = surface().end();
+        it != itE; ++it, ++mp )
+    {
+      Vertex p = *it;
+      SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
+      VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
+      MyNuConvexSet nuConvex( Visitor( surface(), vfunctor, p ), *myVtx2PtFct );
+      nuConvex.setExtensionMode( extensionMode );
+      nuConvex.init( myP, myQ, myDiameter );
+      nuConvex.compute( -1.0 );
+      myMPSTable.push_back( MPS() );
+      MPS & mps = myMPSTable.back();
+      nuConvex.summarize( mps, areaEstimator );
+      std::cerr << "+- MP at " << p << " = " << mps << std::endl;
+      unsigned int nb = 0;
+      for ( typename MyNuConvexSet::ConstIterator 
+              itNCS = nuConvex.begin(), itNCSEnd = nuConvex.end();
+            itNCS != itNCSEnd; ++itNCS, ++nb )
+        {
+          Vertex vtx = *itNCS;
+          addMPSToVertex( vtx, mp );
+        }
+      std::cerr << "  +- has " << nb << " vertices." << std::endl; 
+    }
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+getEstimatedNormal( RealVector & n, Vertex p,
+                    AveragingMode nd ) const
+{
+  std::vector<Scalar> coefs;
+  this->getAveragingCoefficients( coefs, p, nd );
+  this->getEstimatedNormal( n, p, coefs );
+}
+
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+getEstimatedNormal( RealVector & n, Vertex p, 
+		    const std::vector<Scalar> & coefs ) const
+{
+  typename MapVertex2MPSI::const_iterator itMap = myMapVtx2MPSI.find( p );
+  ASSERT( itMap != myMapVtx2MPSI.end() );
+  const MaximalPlaneSummaryIndices & mpsi = itMap->second;
+  ASSERT( coefs.size() >= mpsi.size() );
+  n.reset();
+  unsigned int i = 0;
+  for ( typename MaximalPlaneSummaryIndices::const_iterator 
+	  it = mpsi.begin(), it_end = mpsi.end();
+	it != it_end; ++it, ++i )
+    {
+      n += myMPSTable[ *it ].normal * coefs[ i ];
+    }
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+getAveragingCoefficients( std::vector<Scalar> & coefs, 
+                          Vertex p, 
+			  AveragingMode nd ) const
+{
+  typename MapVertex2MPSI::const_iterator itMap = myMapVtx2MPSI.find( p );
+  ASSERT( itMap != myMapVtx2MPSI.end() );
+  const MaximalPlaneSummaryIndices & mpsi = itMap->second;
+  unsigned int nb = mpsi.size();
+  coefs.resize( nb );
+  Scalar sum = 0.0;
+  RealPoint px = coordinates( p );
+  unsigned int i = 0;
+  unsigned int maxi = 0;
+  Scalar max = -1.0;
+  for ( typename MaximalPlaneSummaryIndices::const_iterator 
+	  it = mpsi.begin(), it_end = mpsi.end();
+	it != it_end; ++it )
+    {
+      const MPS & mps = myMPSTable[ *it ];
+      Scalar coef = 1.0;
+      if ( nd != SimpleAveraging )
+	{
+	  Scalar d = ( px - mps.center ).norm();
+	  if ( nd == RadiusAndDistanceAveraging )
+	    coef = mps.radius / ( d + 1.0 );
+	  else if ( nd == DistanceAveraging )
+	    coef = 1.0 / ( d + 1.0 );
+	  else if ( nd == InOutAveraging )
+	    coef = d <= mps.radius ? 1.0 : (mps.radius * mps.radius / (d*d) );
+	}
+      // Max disk or plane
+      if ( nd == MaxProjectedPlane )
+	{
+	  if ( abs( mps.projectedArea ) > max )
+	    {
+	      max = abs( mps.projectedArea );
+	      maxi = i;
+	    }
+	}
+      // End loop.
+      coefs[ i++ ] = coef;
+      sum += coef;
+    }
+  if ( nd != MaxProjectedPlane )
+    {
+      for ( i = 0; i < nb; ++i )
+	coefs[ i ] /= sum;
+    }
+  else
+    {
+      for ( i = 0; i < nb; ++i )
+	coefs[ i ] = ( i == maxi ) ? 1.0 : 0.0;
+    }
+}
+
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+displayPlanes( std::ostream & out ) const
+{
+  for ( typename DigitalSurface::ConstIterator 
+          it = surface().begin(), itE = surface().end();
+        it != itE; ++it )
+    {
+      Vertex vtx = *it;
+      typename MapVertex2MPSI::const_iterator itMap = myMapVtx2MPSI.find( vtx );
+      ASSERT( itMap != myMapVtx2MPSI.end() );
+      const MaximalPlaneSummaryIndices & mpsi = itMap->second;
+      out << "+- vtx=" << vtx << " (";
+      for ( unsigned int i = 0; i < mpsi.size(); ++i )
+        out << " " << myMPSTable[ mpsi[ i ] ].projectedArea;
+      out << " )" << std::endl;
+    }
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+addMPSToVertex( Vertex vtx, Index mp )
+{
+  typename MapVertex2MPSI::iterator itMap = myMapVtx2MPSI.find( vtx );
+  if ( itMap == myMapVtx2MPSI.end() )
+    {
+      myMapVtx2MPSI[ vtx ].push_back( mp );
+      return;
+    }
+  MaximalPlaneSummaryIndices & mpsi = itMap->second;
+  ASSERT( ! mpsi.empty() );
+  if ( myAreaComparator( myMPSTable[ mp ], myMPSTable[ mpsi[ 0 ] ] ) )
+    { // new plane is smaller than smallest one.
+      if ( mpsi.size() != myNbMaxPerVertex )
+        { // Put smallest one at the end and add it at the beginning.
+          mpsi.push_back( mpsi[ 0 ] );
+          mpsi[ 0 ] = mp;
+        }
+      // otherwise the plane is dropped.
+    }
+  else
+    { // It is not the smallest one
+      if ( mpsi.size() != myNbMaxPerVertex )
+        { // Put it at the end.
+          mpsi.push_back( mp );
+        }
+      else
+        { // Find the next smallest one.
+          mpsi[ 0 ] = mp;
+          unsigned int m = 0;
+          for ( unsigned int i = 1; i < mpsi.size(); ++i )
+            if ( myAreaComparator( myMPSTable[ mpsi[ i ] ], 
+                                   myMPSTable[ mpsi[ m ] ] ) )
+              {
+                m = i;
+              }
+
+          if ( m != 0 )
+            {
+              mpsi[ 0 ] = mpsi[ m ];
+              mpsi[ m ] = mp;
+            }
+        }
+    }
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+clear()
+{
+  myMapVtx2MPSI.clear();
+  myMPSTable.clear();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Interface - public :
+
+/**
+ * Writes/Displays the object on an output stream.
+ * @param out the output stream where the object is written.
+ */
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+selfDisplay ( std::ostream & out ) const
+{
+  out << "[TangentialCover]";
+}
+
+/**
+ * Checks the validity/consistency of the object.
+ * @return 'true' if the object is valid, 'false' otherwise.
+ */
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+bool
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::isValid() const
+{
+  return ( myDigSurf != 0 ) && ( myVtx2PtFct != 0 );
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Implementation of inline functions                                        //
+
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+std::ostream&
+DGtal::operator<< ( std::ostream & out, 
+		  const TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger> & object )
+{
+  object.selfDisplay( out );
+  return out;
+}
+
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+
+
