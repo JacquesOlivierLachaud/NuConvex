@@ -8,6 +8,7 @@
 #include "DGtal/topology/DistanceVisitor.h"
 #include "DGtal/topology/DigitalSurface.h"
 #include "DGtal/topology/LightImplicitDigitalSurface.h"
+#include "DGtal/topology/DigitalSetBoundary.h"
 #include "DGtal/helpers/StdDefs.h"
 #include "DGtal/io/viewers/Viewer3D.h"
 #include "DGtal/io/readers/VolReader.h"
@@ -139,9 +140,11 @@ void outputNuConvexSetNormals( ostream & out,
   SurfelAreaEstimator<DigitalSurface> areaEstimator( digSurf );
   MaximalPlaneSummary<Space> mps;
   Color color( 150, 150, 180 );
+  unsigned int size = digSurf.size();
+  unsigned int i = 0;
   for ( typename DigitalSurface::ConstIterator 
           it = digSurf.begin(), itE = digSurf.end();
-        it != itE; ++it )
+        it != itE; ++it, ++i )
     {
       Vertex p = *it;
       SqEDToPoint distanceToPoint( sqed, embedder( p ) );
@@ -151,12 +154,15 @@ void outputNuConvexSetNormals( ostream & out,
       nuConvex.init( nup, nuq, 400 );
       nuConvex.compute( -1.0 );
       nuConvex.summarize( mps, areaEstimator );
-      std::cerr << mps << std::endl;
+      if ( ( i % 100 ) == 0 )
+        trace.progressBar( (double) i, (double) size );
+      // std::cerr << mps << std::endl;
       outputCellInColorWithNormal( out, 
                                    ks, p, color, mps.normal );
     }
 }
 
+// Good version
 template < typename DigitalSurface, 
            typename VertexEmbedder >
 void outputNuConvexSetNormals2( ostream & out,
@@ -175,6 +181,7 @@ void outputNuConvexSetNormals2( ostream & out,
   MyTangentialCover tgtCover;
   tgtCover.init( digSurf, embedder, nup, nuq, 400 );
   tgtCover.compute( nbMax );
+  trace.info() << std::endl;
   Color color( 150, 150, 180 );
   RealVector normal;
   for ( typename DigitalSurface::ConstIterator 
@@ -236,17 +243,21 @@ int main( int argc, char** argv )
 
   //! [volDistanceTraversal-SurfelAdjacency]
   typedef SurfelAdjacency<KSpace::dimension> MySurfelAdjacency;
-  MySurfelAdjacency surfAdj( true ); // interior in all directions.
+  MySurfelAdjacency surfAdj( false ); // interior in all directions.
   //! [volDistanceTraversal-SurfelAdjacency]
 
   //! [volDistanceTraversal-SetUpDigitalSurface]
   trace.beginBlock( "Set up digital surface." );
-  typedef LightImplicitDigitalSurface<KSpace, SetPredicate<DigitalSet> > 
-    MyDigitalSurfaceContainer;
+  typedef DigitalSetBoundary<KSpace, DigitalSet > MyDigitalSurfaceContainer;
   typedef DigitalSurface<MyDigitalSurfaceContainer> MyDigitalSurface;
-  SCell bel = Surfaces<KSpace>::findABel( ks, set3dPredicate, 100000 );
   MyDigitalSurfaceContainer* ptrSurfContainer = 
-    new MyDigitalSurfaceContainer( ks, set3dPredicate, surfAdj, bel );
+    new MyDigitalSurfaceContainer( ks, set3d, surfAdj );
+  // typedef LightImplicitDigitalSurface<KSpace, SetPredicate<DigitalSet> > 
+  //   MyDigitalSurfaceContainer;
+  // typedef DigitalSurface<MyDigitalSurfaceContainer> MyDigitalSurface;
+  // SCell bel = Surfaces<KSpace>::findABel( ks, set3dPredicate, 100000 );
+  // MyDigitalSurfaceContainer* ptrSurfContainer = 
+  //   new MyDigitalSurfaceContainer( ks, set3dPredicate, surfAdj, bel );
   MyDigitalSurface digSurf( ptrSurfContainer ); // acquired
   trace.endBlock();
   //! [volDistanceTraversal-SetUpDigitalSurface]

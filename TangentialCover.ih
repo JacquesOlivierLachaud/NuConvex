@@ -108,10 +108,14 @@ compute( unsigned int nbMaxPerVertex, bool extensionMode )
   Index mp = 0; // Index of the current maximal plane.
   SurfelAreaEstimator areaEstimator( surface() );
   SqED sqed;
+  unsigned int size = surface().size();
+  unsigned int i = 0;
   for ( typename DigitalSurface::ConstIterator 
           it = surface().begin(), itE = surface().end();
-        it != itE; ++it, ++mp )
+        it != itE; ++it, ++mp, ++i )
     {
+      if ( ( i % 100 ) == 0 )
+        trace.progressBar( (double) i, (double) size );
       Vertex p = *it;
       SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
       VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
@@ -122,7 +126,7 @@ compute( unsigned int nbMaxPerVertex, bool extensionMode )
       myMPSTable.push_back( MPS() );
       MPS & mps = myMPSTable.back();
       nuConvex.summarize( mps, areaEstimator );
-      std::cerr << "+- MP at " << p << " = " << mps << std::endl;
+      // std::cerr << "+- MP at " << p << " = " << mps << std::endl;
       unsigned int nb = 0;
       for ( typename MyNuConvexSet::ConstIterator 
               itNCS = nuConvex.begin(), itNCSEnd = nuConvex.end();
@@ -131,7 +135,7 @@ compute( unsigned int nbMaxPerVertex, bool extensionMode )
           Vertex vtx = *itNCS;
           addMPSToVertex( vtx, mp );
         }
-      std::cerr << "  +- has " << nb << " vertices." << std::endl; 
+      // std::cerr << "  +- has " << nb << " vertices." << std::endl; 
     }
 }
 //-----------------------------------------------------------------------------
