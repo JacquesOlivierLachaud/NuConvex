@@ -119,62 +119,17 @@ struct SurfelAreaEstimator
   const DigitalSurface & myDigSurf;
 };
 
-template <typename DigitalSurface, typename VertexEmbedder >
-void outputNuConvexSetNormals( ostream & out,
-                               const DigitalSurface & digSurf, 
-                               const VertexEmbedder & embedder,
-                               unsigned int nup,
-                               unsigned int nuq )
-{
-  typedef DigitalSurface Graph;
-  typedef typename DigitalSurface::KSpace KSpace;
-  typedef typename DigitalSurface::Vertex Vertex;
-  typedef typename KSpace::Space Space;
-  typedef typename Space::RealPoint RealPoint;
-  typedef typename RealPoint::Coordinate Scalar;
-  typedef SquaredEuclideanDistance<RealPoint> SqED;
-  typedef Lambda2To1<SqED, RealPoint, RealPoint, Scalar> SqEDToPoint;
-  typedef Composer<VertexEmbedder, SqEDToPoint, Scalar> VertexFunctor;
-  typedef DistanceVisitor< Graph, VertexFunctor > Visitor;
-
-  typedef NuConvexSet< Space, Visitor, VertexEmbedder, DGtal::int64_t > MyNuConvexSet;
-  
-  SqED sqed;
-  const KSpace & ks = digSurf.container().space();
-  SurfelAreaEstimator<DigitalSurface> areaEstimator( digSurf );
-  MaximalPlaneSummary<Space> mps;
-  Color color( 150, 150, 180 );
-  unsigned int size = digSurf.size();
-  unsigned int i = 0;
-  for ( typename DigitalSurface::ConstIterator 
-          it = digSurf.begin(), itE = digSurf.end();
-        it != itE; ++it, ++i )
-    {
-      Vertex p = *it;
-      SqEDToPoint distanceToPoint( sqed, embedder( p ) );
-      VertexFunctor vfunctor( embedder, distanceToPoint );
-      MyNuConvexSet nuConvex( Visitor( digSurf, vfunctor, p ), embedder );
-      nuConvex.setExtensionMode( false );
-      nuConvex.init( nup, nuq, 400 );
-      nuConvex.compute( -1.0 );
-      nuConvex.summarize( mps, areaEstimator );
-      if ( ( i % 100 ) == 0 )
-        trace.progressBar( (double) i, (double) size );
-      // std::cerr << mps << std::endl;
-      outputCellInColorWithNormal( out, 
-                                   ks, p, color, mps.normal );
-    }
-}
 
 // Good version
 template < typename DigitalSurface, 
            typename VertexEmbedder >
-void outputNuConvexSetNormals2( ostream & out,
-                                const DigitalSurface & digSurf, 
-                                const VertexEmbedder & embedder,
-                                unsigned int nup,
-                                unsigned int nuq,
-                                unsigned int nbMax )
+void 
+outputNuConvexSetNormals( ostream & out,
+                          const DigitalSurface & digSurf, 
+                          const VertexEmbedder & embedder,
+                          unsigned int nup,
+                          unsigned int nuq,
+                          unsigned int nbMax )
 {
   typedef TangentialCover<DigitalSurface,VertexEmbedder, DGtal::int64_t>
     MyTangentialCover;
@@ -277,7 +232,7 @@ int main( int argc, char** argv )
   typedef DigitalSurface2InnerPointFunctor<MyDigitalSurface> VertexEmbedder;
   VertexEmbedder embedder( digSurf );
   ofstream outFile( "titi.txt" );
-  outputNuConvexSetNormals2( outFile, digSurf, embedder, p, q, nbMax );
+  outputNuConvexSetNormals( outFile, digSurf, embedder, p, q, nbMax );
   outFile.close();
   return true ? 0 : 1;
 }
