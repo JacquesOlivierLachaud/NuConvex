@@ -165,8 +165,11 @@ outputNuConvexSetNormals( ostream & out,
 void usage( int, char** argv )
 {
   std::cerr << "Usage: " << argv[ 0 ] << " <fileName.vol> <minT> <maxT> <p> <q> <n>" << std::endl;
-  std::cerr << "\t - displays the boundary of the shape stored in vol file <fileName.vol>." << std::endl;
-  std::cerr << "\t - voxel v belongs to the shape iff its value I(v) follows minT <= I(v) <= maxT." << std::endl;
+  std::cerr << "Computes maximal planes and displays normals of the shape stored in vol file <fileName.vol>." << std::endl;
+  std::cerr << "\t - voxel v belongs to the shape iff its value I(v) follows minT < I(v) <= maxT." << std::endl;
+  std::cerr << "\t - the rational number p/q is the width of maximal planes." << std::endl;
+  std::cerr << "\t - the integer number n is the maximal number of maximal planes kept for each surfel of the shape." 
+            << " Choosing 1 is a segmentation of the shape boundary into planes." << std::endl;
 }
 
 int main( int argc, char** argv )
