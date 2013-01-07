@@ -144,6 +144,129 @@ template <typename TDigitalSurface, typename TVertex2PointFunctor,
 inline
 void
 DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
+{
+  ASSERT( isValid() );
+  clear(); // make sure members are empty
+  myNbMaxPerVertex = nbMaxPerVertex;
+  Index mp = 0; // Index of the current maximal plane.
+  SurfelAreaEstimator areaEstimator( surface() );
+  SqED sqed;
+
+  // Compute inclusions of planes.
+  unsigned int size = surface().size();
+  myPlane2CoveringPlane.resize( size );
+  for ( Index j = 0; j < size; ++j )
+    myPlane2CoveringPlane[ j ] = j;
+
+  myMPSTable.resize( size );
+  // myMostCenteredVertices.clear(); // necessary to clear lists.
+  // myMostCenteredVertices.resize( size );
+
+  // Compute maximal planes.
+  unsigned int i = 0;
+  std::vector<MyNuConvexSet*> tableNuConvexSets( size );
+  for ( typename DigitalSurface::ConstIterator 
+          it = surface().begin(), itE = surface().end();
+        it != itE; ++it, ++mp, ++i )
+    {
+      if ( ( i % 100 ) == 0 )
+        trace.progressBar( (double) i, (double) size );
+      // Computes the maximal plane for this vertex.
+      Vertex p = *it;
+      SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
+      VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
+      MyNuConvexSet* & nuConvex = tableNuConvexSets[ mp ];
+      nuConvex = new MyNuConvexSet( Visitor( surface(), vfunctor, p ), *myVtx2PtFct );
+      nuConvex->setExtensionMode( extensionMode );
+      nuConvex->init( myP, myQ, myDiameter );
+      nuConvex->compute( -1.0 );
+      nuConvex->sort();
+      // Also not necessary, memorizes its statistics.
+      MPS & mps = myMPSTable[ mp ];
+      nuConvex->summarize( mps, areaEstimator );
+      // Checks if this plane is included or includes the other planes that already covers this plane.
+      bool isIncluded = false;
+      typename MapVertex2MPI::iterator itMap = myMapVtx2MPI.find( p );
+      if ( itMap != myMapVtx2MPI.end() )
+        { // this vertex is already covered by some planes.
+          MaximalPlaneIndices & mpi = itMap->second;      
+          // assign correct mp to the vertex.
+          cleanMaximalPlaneIndices( mpi );
+          // they are now all designing different mp.
+          for ( typename MaximalPlaneIndices::const_iterator itMPI = mpi.begin(),
+                  itMPIEnd = mpi.end(); itMPI != itMPIEnd; ++itMPI )
+            {
+              Index otherMP = *itMPI; // no need to call father( *itMPI ) after cleaning.
+              MyNuConvexSet* & otherNuConvex = tableNuConvexSets[ otherMP ];
+              if ( nuConvex->size() <= otherNuConvex->size() )
+                { // either included, same or different.
+                  if ( std::includes( otherNuConvex->begin(), otherNuConvex->end(),
+                                      nuConvex->begin(), nuConvex->end() ) )
+                    {
+                      trace.info() << "- new MP " << mp << " is included in old MP " << otherMP << std::endl;
+                      isIncluded = true;
+                      setFather( mp, otherMP );
+                      break;
+                    }
+                }
+              else // case: nuConvex->size() > otherNuConvex->size() )
+                { // either container, same or different.
+                  if ( std::includes(  nuConvex->begin(), nuConvex->end(),
+                                       otherNuConvex->begin(), otherNuConvex->end() ) )
+                    {
+                      trace.info() << "- old MP " << otherMP << " is included in new MP" << mp << std::endl;
+                      setFather( otherMP, mp );
+                      trace.info() << "  => freeing it, size was " << otherNuConvex->size() << std::endl;
+                      // free it.
+                      delete otherNuConvex;
+                      otherNuConvex = 0;
+                    }
+                }
+            }
+          // all possible planes have been checked.
+        }
+      if ( isIncluded )
+        { // delete it if included.
+          trace.info() << "  => freeing it, size was " << nuConvex->size() << std::endl;
+          delete nuConvex;
+          nuConvex = 0;
+        }
+      else 
+        { // add mp to each vertex.
+          // std::cerr << "+- MP at " << p << " = " << mps << std::endl;
+          unsigned int nb = 0;
+          for ( typename MyNuConvexSet::ConstIterator 
+                  itNCS = nuConvex->begin(), itNCSEnd = nuConvex->end();
+                itNCS != itNCSEnd; ++itNCS, ++nb )
+            {
+              Vertex vtx = *itNCS;
+              myMapVtx2MPI[ vtx ].insert( mp ); // vtx belongs to MP mp.
+            }
+          // std::cerr << "  +- has " << nb << " vertices." << std::endl; 
+        }
+    } // go to next vertex.
+
+  // Fill minimal informations.
+  for ( typename MapVertex2MPI::iterator itMap = myMapVtx2MPI.begin(),
+          itMapEnd = myMapVtx2MPI.end(); itMap != itMapEnd; ++itMap )
+    {
+      Vertex vtx = itMap->first;
+      MaximalPlaneIndices & mpi = itMap->second;
+      cleanMaximalPlaneIndices( mpi );
+      for ( typename MaximalPlaneIndices::const_iterator itMPI = mpi.begin(),
+              itMPIEnd = mpi.end(); itMPI != itMPIEnd; ++itMPI )
+        {
+          addMPSToVertex( vtx, *itMPI );
+        }
+    }
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
 getEstimatedNormal( RealVector & n, Vertex p,
                     AveragingMode nd ) const
 {
@@ -257,11 +380,34 @@ displayPlanes( std::ostream & out ) const
       out << " )" << std::endl;
     }
 }
+
 //-----------------------------------------------------------------------------
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
           typename TInternalInteger >
 inline
-void
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::MaximalPlaneIndicesConstIterator
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+begin( const Vertex & vtx )
+{
+  return myMapVtx2MPI[ vtx ].begin();
+}
+
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::MaximalPlaneIndicesConstIterator
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+end( const Vertex & vtx )
+{
+  return myMapVtx2MPI[ vtx ].end();
+}
+
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+bool
 DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
 addMPSToVertex( Vertex vtx, Index mp )
 {
@@ -269,7 +415,7 @@ addMPSToVertex( Vertex vtx, Index mp )
   if ( itMap == myMapVtx2MPSI.end() )
     {
       myMapVtx2MPSI[ vtx ].push_back( mp );
-      return;
+      return true;
     }
   MaximalPlaneSummaryIndices & mpsi = itMap->second;
   ASSERT( ! mpsi.empty() );
@@ -279,8 +425,13 @@ addMPSToVertex( Vertex vtx, Index mp )
         { // Put smallest one at the end and add it at the beginning.
           mpsi.push_back( mpsi[ 0 ] );
           mpsi[ 0 ] = mp;
+          return true;
         }
-      // otherwise the plane is dropped.
+      else
+        {
+          // otherwise the plane is dropped.
+          return false;
+        }
     }
   else
     { // It is not the smallest one
@@ -305,7 +456,8 @@ addMPSToVertex( Vertex vtx, Index mp )
               mpsi[ m ] = mp;
             }
         }
-    }
+      return true;
+   }
 }
 //-----------------------------------------------------------------------------
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
@@ -317,8 +469,68 @@ clear()
 {
   myMapVtx2MPSI.clear();
   myMPSTable.clear();
+  myMapVtx2MPI.clear();
 }
-
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::Index
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+father( Index mp )
+{
+  Index f = myPlane2CoveringPlane[ mp ];
+  if ( f != mp )
+    {
+      f = myPlane2CoveringPlane[ mp ] = father( f );
+      // // move also vertices.
+      // myMostCenteredVertices[ f ].splice( myMostCenteredVertices[ f ].end(), 
+      //                                     myMostCenteredVertices[ mp ] );
+      return f;
+    }
+  else
+    return f;
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+setFather( Index mp, Index f )
+{
+  myPlane2CoveringPlane[ mp ] = f;
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+cleanMaximalPlaneIndices( MaximalPlaneIndices & mpi )
+{
+  std::vector< Index > trueMP;
+  for ( typename MaximalPlaneIndices::iterator itMPI = mpi.begin(),
+          itMPIEnd = mpi.end(); itMPI != itMPIEnd;  )
+    {
+      Index tentativeMP = *itMPI;
+      Index otherMP = father( tentativeMP );
+      if ( tentativeMP == otherMP ) 
+        ++itMPI;
+      else
+        {
+          typename MaximalPlaneIndices::iterator itMPITmp = itMPI;
+          ++itMPI;
+          mpi.erase( itMPITmp );
+          trueMP.push_back( otherMP );
+        }
+    }
+  // put back true MP indices in map.
+  for ( typename std::vector< Index >::const_iterator 
+          it = trueMP.begin(), itE = trueMP.end();
+        it != itE; ++it )
+    mpi.insert( *it );
+}
 ///////////////////////////////////////////////////////////////////////////////
 // Interface - public :
 

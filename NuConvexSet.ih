@@ -29,6 +29,7 @@
 
 //////////////////////////////////////////////////////////////////////////////
 #include <cstdlib>
+#include <algorithm>
 //////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -208,6 +209,26 @@ compute( Scalar distanceUpperBound )
 template < typename TSpace, typename TVisitor,
 	   typename TVertex2PointFunctor, typename TInternalInteger >
 inline
+typename DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::Size
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
+size() const
+{
+  return myVertices.size();
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertex2PointFunctor, typename TInternalInteger >
+inline
+bool
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
+empty() const
+{
+  return myVertices.empty();
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertex2PointFunctor, typename TInternalInteger >
+inline
 typename DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::ConstIterator
 DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 begin() const
@@ -223,6 +244,16 @@ DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 end() const
 {
   return myVertices.end();
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertex2PointFunctor, typename TInternalInteger >
+inline
+void
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
+sort()
+{
+  std::sort( myVertices.begin(), myVertices.end() );
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,

@@ -12,12 +12,16 @@
 #include "DGtal/helpers/StdDefs.h"
 #include "DGtal/io/viewers/Viewer3D.h"
 #include "DGtal/io/readers/VolReader.h"
+#include "DGtal/io/Color.h"
+#include "DGtal/io/colormaps/HueShadeColorMap.h"
 #include "DGtal/images/imagesSetsUtils/SetFromImage.h"
 #include "BasicHPolytopeND.h"
 #include "NuConvexSet.h"
 #include "DigitalSurface2InnerPointFunctor.h"
 #include "TangentialCover.h"
 
+
+static const bool ColorAccordingToNbMP = false;
 
 typedef float Vec3f[ 3 ];
 
@@ -177,21 +181,29 @@ void outputNuConvexSetNormals2( ostream & out,
   typedef typename DigitalSurface::KSpace KSpace;
   typedef typename KSpace::Space::RealVector RealVector;
   typedef typename DigitalSurface::Vertex Vertex;
+  typedef typename MyTangentialCover::Index Index;
   const KSpace & ks = digSurf.container().space();
   MyTangentialCover tgtCover;
   tgtCover.init( digSurf, embedder, nup, nuq, 400 );
-  tgtCover.compute( nbMax );
+  tgtCover.computeOnce( nbMax );
   trace.info() << std::endl;
+  HueShadeColorMap<Index,1> hueShade( 0, nbMax );
   Color color( 150, 150, 180 );
   RealVector normal;
   for ( typename DigitalSurface::ConstIterator 
           it = digSurf.begin(), itE = digSurf.end();
         it != itE; ++it )
     {
+      typedef typename MyTangentialCover::MaximalPlaneIndicesConstIterator MPIConstIterator;
       Vertex p = *it;
       tgtCover.getEstimatedNormal( normal, p, MyTangentialCover::SimpleAveraging );
+      unsigned int nbMP = 0;
+      for ( MPIConstIterator itMPI = tgtCover.begin( p ), itMPIEnd = tgtCover.end( p );
+            itMPI != itMPIEnd; ++itMPI )
+        ++nbMP;
+      Color c = ColorAccordingToNbMP ? hueShade( nbMP ) : color;
       outputCellInColorWithNormal( out, 
-                                   ks, p, color, normal );
+                                   ks, p, c, normal );
     }
 }
 

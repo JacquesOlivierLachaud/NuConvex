@@ -91,6 +91,7 @@ namespace DGtal
 
     typedef std::vector<Vertex> Container;
     typedef typename Container::const_iterator ConstIterator;
+    typedef typename Container::size_type Size;
 
     class VertexPolytopePredicateAdapter
     {
@@ -187,8 +188,13 @@ namespace DGtal
 
     bool compute( Scalar distanceUpperBound = -1 );
 
+    Size size() const;
+    bool empty() const;
     ConstIterator begin() const;
     ConstIterator end() const;
+
+    /// Sorts nu-convex set vertices in the container.
+    void sort();
 
     /**
        @param mps the object that stores the geometric summary of the nu-convex set.

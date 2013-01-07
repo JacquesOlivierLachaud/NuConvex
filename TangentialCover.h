@@ -143,6 +143,11 @@ namespace DGtal
     typedef std::map<Vertex, MaximalPlaneSummaryIndices> MapVertex2MPSI;
     typedef std::vector<MPS> MaximalPlaneSummaryTable;
 
+    typedef std::set<Index> MaximalPlaneIndices;
+    typedef typename MaximalPlaneIndices::const_iterator MaximalPlaneIndicesConstIterator;
+    typedef std::map<Vertex, MaximalPlaneIndices> MapVertex2MPI;
+
+
     // ----------------------- Standard services ------------------------------
   public:
 
@@ -210,6 +215,26 @@ namespace DGtal
                   bool extensionMode = false );
 
     /**
+       Computes all maximal planes on the surface. For each vertex,
+       memorizes at most \a nbMaxPerVertex planes (the ones with
+       maximal projected area). This method takes care that no two
+       planes are identical.  Calls clear().
+
+       @param nbMaxPerVertex the maximal number of maximal planes
+       stored per vertex.
+
+       @param extensionMode extMode when 'true', the nu-convex set
+       considers first vertices that are in the current nu-width
+       plane, and only after it tries to find a nu-width plane that
+       contains also the other potential vertices ; when 'false', the
+       nu-convex set considers all potential vertices at the same time
+       to find a nu-width plane.
+    */
+    void computeOnce( unsigned int nbMaxPerVertex, 
+                      bool extensionMode = false );
+
+
+    /**
        Resets all computations.
     */
     void clear();
@@ -247,6 +272,25 @@ namespace DGtal
 
     void displayPlanes( std::ostream & out ) const;
 
+    /**
+       @param vtx any vertex of the surface.
+
+       @return a const iterator pointing on the first element of the
+       list of maximal planes of vertex \a vtx.
+
+       NB: non-const method because of std::map::operator[].
+    */
+    MaximalPlaneIndicesConstIterator begin( const Vertex & vtx );
+    /**
+       @param vtx any vertex of the surface.
+
+       @return a const iterator pointing after the last element of the
+       list of maximal planes of vertex \a vtx.
+
+       NB: non-const method because of std::map::operator[].
+    */
+    MaximalPlaneIndicesConstIterator end( const Vertex & vtx );
+
     // ----------------------- Interface --------------------------------------
   public:
 
@@ -279,7 +323,16 @@ namespace DGtal
     MapVertex2MPSI myMapVtx2MPSI;
     MaximalPlaneSummaryTable myMPSTable;
     unsigned int myNbMaxPerVertex;
+    
+    /// Stores the map MP index -> covering MP index.
+    std::vector< Index > myPlane2CoveringPlane;
+    /// Stores for each MP its most centered vertices.
+    std::vector< std::list< Vertex > > myMostCenteredVertices;
 
+    /// Stores completely the mapping vtx -> set of its MP.
+    MapVertex2MPI myMapVtx2MPI;
+    
+    
     // ------------------------- Hidden services ------------------------------
   private:
 
@@ -301,7 +354,29 @@ namespace DGtal
     // ------------------------- Internals ------------------------------------
   private:
 
-    void addMPSToVertex( Vertex vtx, Index mp );
+    /**
+       Add the maximal plane index \a mp to the list of maximal planes
+       covering vertex \a vtx.
+
+       @param vtx a valid vertex.
+       @param mp a valid maximal plane index.
+
+       @return 'true' iff the maximal plane was effectively added to
+       the list of maximal planes of vertex \a vtx. It is 'false' when
+       the maximal plane is too small wrt to the maximal planes
+       covering \a vtx.
+    */
+    bool addMPSToVertex( Vertex vtx, Index mp );
+
+    /**
+       @param mp a valid maximal plane index.
+       @return the index of the biggest maximal plane covering \a mp.
+    */
+    Index father( Index mp );
+
+    void setFather( Index mp, Index f );
+
+    void cleanMaximalPlaneIndices( MaximalPlaneIndices & mpi );
 
   }; // end of class TangentialCover
 
