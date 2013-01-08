@@ -186,7 +186,7 @@ int main( int argc, char** argv )
   unsigned int p = argc >= 5 ? atoi( argv[ 4 ] ) : 1;
   unsigned int q = argc >= 6 ? atoi( argv[ 5 ] ) : 1;
   unsigned int nbMax = argc >= 7 ? atoi( argv[ 6 ] ) : 1;
-  //! [volDistanceTraversal-readVol]
+  //! [convex-normals-readVol]
   trace.beginBlock( "Reading vol file into an image." );
   using namespace Z3i;
   typedef ImageSelector < Domain, int>::Type Image;
@@ -196,9 +196,9 @@ int main( int argc, char** argv )
   SetFromImage<DigitalSet>::append<Image>(set3d, image, 
                                           minThreshold, maxThreshold);
   trace.endBlock();
-  //! [volDistanceTraversal-readVol]
+  //! [convex-normals-readVol]
 
-  //! [volDistanceTraversal-KSpace]
+  //! [convex-normals-KSpace]
   trace.beginBlock( "Construct the Khalimsky space from the image domain." );
   KSpace ks;
   bool space_ok = ks.init( image.domain().lowerBound(), 
@@ -209,14 +209,14 @@ int main( int argc, char** argv )
       return 2;
     }
   trace.endBlock();
-  //! [volDistanceTraversal-KSpace]
+  //! [convex-normals-KSpace]
 
-  //! [volDistanceTraversal-SurfelAdjacency]
+  //! [convex-normals-SurfelAdjacency]
   typedef SurfelAdjacency<KSpace::dimension> MySurfelAdjacency;
   MySurfelAdjacency surfAdj( false ); // interior in all directions.
-  //! [volDistanceTraversal-SurfelAdjacency]
+  //! [convex-normals-SurfelAdjacency]
 
-  //! [volDistanceTraversal-SetUpDigitalSurface]
+  //! [convex-normals-SetUpDigitalSurface]
   trace.beginBlock( "Set up digital surface." );
   typedef DigitalSetBoundary<KSpace, DigitalSet > MyDigitalSurfaceContainer;
   typedef DigitalSurface<MyDigitalSurfaceContainer> MyDigitalSurface;
@@ -230,7 +230,7 @@ int main( int argc, char** argv )
   //   new MyDigitalSurfaceContainer( ks, set3dPredicate, surfAdj, bel );
   MyDigitalSurface digSurf( ptrSurfContainer ); // acquired
   trace.endBlock();
-  //! [volDistanceTraversal-SetUpDigitalSurface]
+  //! [convex-normals-SetUpDigitalSurface]
 
   typedef DigitalSurface2InnerPointFunctor<MyDigitalSurface> VertexEmbedder;
   VertexEmbedder embedder( digSurf );

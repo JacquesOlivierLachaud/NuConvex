@@ -204,7 +204,7 @@ computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
                   if ( std::includes( otherNuConvex->begin(), otherNuConvex->end(),
                                       nuConvex->begin(), nuConvex->end() ) )
                     {
-                      trace.info() << "- new MP " << mp << " is included in old MP " << otherMP << std::endl;
+                      // trace.info() << "- new MP " << mp << " is included in old MP " << otherMP << std::endl;
                       isIncluded = true;
                       setFather( mp, otherMP );
                       break;
@@ -215,9 +215,9 @@ computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
                   if ( std::includes(  nuConvex->begin(), nuConvex->end(),
                                        otherNuConvex->begin(), otherNuConvex->end() ) )
                     {
-                      trace.info() << "- old MP " << otherMP << " is included in new MP" << mp << std::endl;
+                      // trace.info() << "- old MP " << otherMP << " is included in new MP" << mp << std::endl;
                       setFather( otherMP, mp );
-                      trace.info() << "  => freeing it, size was " << otherNuConvex->size() << std::endl;
+                      // trace.info() << "  => freeing it, size was " << otherNuConvex->size() << std::endl;
                       // free it.
                       delete otherNuConvex;
                       otherNuConvex = 0;
@@ -228,7 +228,7 @@ computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
         }
       if ( isIncluded )
         { // delete it if included.
-          trace.info() << "  => freeing it, size was " << nuConvex->size() << std::endl;
+          // trace.info() << "  => freeing it, size was " << nuConvex->size() << std::endl;
           delete nuConvex;
           nuConvex = 0;
         }
@@ -249,7 +249,7 @@ computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
 
   // Fill minimal informations.
   for ( typename MapVertex2MPI::iterator itMap = myMapVtx2MPI.begin(),
-          itMapEnd = myMapVtx2MPI.end(); itMap != itMapEnd; ++itMap )
+          itMapEnd = myMapVtx2MPI.end(); itMap != itMapEnd; )
     {
       Vertex vtx = itMap->first;
       MaximalPlaneIndices & mpi = itMap->second;
@@ -259,6 +259,10 @@ computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
         {
           addMPSToVertex( vtx, *itMPI );
         }
+      // clear memory.
+      typename MapVertex2MPI::iterator itMapTmp = itMap;
+      ++itMap;
+      myMapVtx2MPI.erase( itMapTmp );
     }
 }
 //-----------------------------------------------------------------------------
