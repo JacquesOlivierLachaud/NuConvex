@@ -29,6 +29,7 @@
 
 //////////////////////////////////////////////////////////////////////////////
 #include <cstdlib>
+#include <algorithm>
 //////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -260,9 +261,9 @@ computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
           addMPSToVertex( vtx, *itMPI );
         }
       // clear memory.
-      typename MapVertex2MPI::iterator itMapTmp = itMap;
+      // typename MapVertex2MPI::iterator itMapTmp = itMap;
       ++itMap;
-      myMapVtx2MPI.erase( itMapTmp );
+      // myMapVtx2MPI.erase( itMapTmp );
     }
 }
 //-----------------------------------------------------------------------------
@@ -300,7 +301,47 @@ getEstimatedNormal( RealVector & n, Vertex p,
     {
       n += myMPSTable[ *it ].normal * coefs[ i ];
     }
+  n /= n.norm();
 }
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::Scalar
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+varianceNormal( Vertex p, AveragingMode nd ) const
+{
+  std::vector<Scalar> coefs;
+  this->getAveragingCoefficients( coefs, p, nd );
+  return this->varianceNormal( p, coefs );
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::Scalar
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+varianceNormal( Vertex p, const std::vector<Scalar> & coefs ) const
+{
+  typename MapVertex2MPSI::const_iterator itMap = myMapVtx2MPSI.find( p );
+  ASSERT( itMap != myMapVtx2MPSI.end() );
+  const MaximalPlaneSummaryIndices & mpsi = itMap->second;
+  ASSERT( coefs.size() >= mpsi.size() );
+  RealVector n;
+  this->getEstimatedNormal( n, p, coefs );
+  double sqAngles = 0.0;
+  unsigned int i = 0;
+  for ( typename MaximalPlaneSummaryIndices::const_iterator 
+	  it = mpsi.begin(), it_end = mpsi.end();
+	it != it_end; ++it, ++i )
+    {
+      Scalar d = n.dot( myMPSTable[ *it ].normal );
+      double angle = acos( d ); 
+      sqAngles += angle * angle * coefs[ i ];
+    }
+  return sqAngles;
+}
+
 //-----------------------------------------------------------------------------
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
           typename TInternalInteger >
@@ -361,7 +402,40 @@ getAveragingCoefficients( std::vector<Scalar> & coefs,
 	coefs[ i ] = ( i == maxi ) ? 1.0 : 0.0;
     }
 }
-
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+sortPlanes()
+{
+  MPSIAreaComparator areaComp( *this );
+  for ( typename MapVertex2MPSI::iterator itMap = myMapVtx2MPSI.begin(),
+          itMapEnd = myMapVtx2MPSI.end(); itMap != itMapEnd; ++itMap )
+    {
+      MaximalPlaneSummaryIndices & mpsi = itMap->second;
+      std::sort( mpsi.begin(), mpsi.end(), areaComp );
+    }
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+purgePlanes( double ratio )
+{
+  MPSIAreaComparator areaComp( *this );
+  for ( typename MapVertex2MPSI::iterator itMap = myMapVtx2MPSI.begin(),
+          itMapEnd = myMapVtx2MPSI.end(); itMap != itMapEnd; ++itMap )
+    {
+      MaximalPlaneSummaryIndices & mpsi = itMap->second;
+      unsigned int newSize = (unsigned int) floor( ratio * (double) mpsi.size() ) + 1;
+      newSize = std::min( newSize, (unsigned int) mpsi.size() );
+      mpsi.resize( newSize );
+    }
+}
 //-----------------------------------------------------------------------------
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
           typename TInternalInteger >
@@ -389,22 +463,32 @@ displayPlanes( std::ostream & out ) const
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
           typename TInternalInteger >
 inline
-typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::MaximalPlaneIndicesConstIterator
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::MaximalPlaneSummaryIndicesConstIterator
 DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
 begin( const Vertex & vtx )
 {
-  return myMapVtx2MPI[ vtx ].begin();
+  return myMapVtx2MPSI[ vtx ].begin();
 }
 
 //-----------------------------------------------------------------------------
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
           typename TInternalInteger >
 inline
-typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::MaximalPlaneIndicesConstIterator
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::MaximalPlaneSummaryIndicesConstIterator
 DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
 end( const Vertex & vtx )
 {
-  return myMapVtx2MPI[ vtx ].end();
+  return myMapVtx2MPSI[ vtx ].end();
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+const typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::MPS &
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+maximalPlaneSummary( Index mp ) const
+{
+  return myMPSTable[ mp ];
 }
 
 //-----------------------------------------------------------------------------

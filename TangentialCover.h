@@ -40,6 +40,7 @@
 
 //////////////////////////////////////////////////////////////////////////////
 // Inclusions
+#include <cmath>
 #include <iostream>
 #include "DGtal/base/Common.h"
 #include "DGtal/base/BasicFunctors.h"
@@ -131,6 +132,106 @@ namespace DGtal
       }
     };
 
+    struct MPSIAreaComparator {
+      inline
+      MPSIAreaComparator( const TangentialCover & cover )
+        : myCover( cover )
+      {}
+
+      bool operator()( const Index & i1, const Index & i2 ) const
+      {
+        return myCover.maximalPlaneSummary( i1 ).projectedArea
+          > myCover.maximalPlaneSummary( i2 ).projectedArea;
+      } 
+      const TangentialCover & myCover;
+    };
+
+    /**
+       The similarity is the cosinus between the two estimated normals at the vertex.
+
+       ns(v1,v2)=max(0,n(v1).n(v2))
+
+    */
+    struct NormalSimilarity {
+      
+      inline
+      NormalSimilarity( const TangentialCover & cover,
+                        AveragingMode nd = SimpleAveraging )
+        : myCover( cover ), myAveragingMode( nd )
+      {}
+
+      inline
+      NormalSimilarity( const NormalSimilarity & other )
+        : myCover( other.myCover ), myAveragingMode( other.myAveragingMode )
+      {}
+      
+      double operator()( const Vertex & v1, const Vertex & v2 ) const
+      {
+        RealVector n1, n2;
+        myCover.getEstimatedNormal( n1, v1, myAveragingMode );
+        myCover.getEstimatedNormal( n2, v2, myAveragingMode );
+        double sim = n1.dot( n2 );
+        return std::max( sim, 0.0 );
+      } 
+      
+      const TangentialCover & myCover;
+      AveragingMode myAveragingMode;
+    };
+
+    /**
+       The similarity is the cosinus between the two estimated normals at the vertex.
+  
+       a is the angle incertitude (>0).
+       R = sqrt(v(v1))+a, r = sqrt(v(v2))+a, d = acos( n(v1).n(v2) )
+       D1=disk(R,n(v1)), D2=disk(r,n(v2)), we wish to measure A=Area( D1 \cap D2 ).
+       if R+r < d, then there is no intersection, A = 0,
+       else if R > d+r then the first is included into the second, A = Area(D2),
+       else if r > d+R then the second is included into the first, A = Area(D1),
+       else A = r^2*acos( (d^2+r^2-R^2) / (2*d*r) ) 
+                + R^2*acos( (d^2+R^2-r^2) / (2*d*R) )
+                - 1/2*sqrt( (-d+r+R)*(d+r-R)*(d-r+R)*(d+r+R) ).
+
+       return 2*A / ( Area(D1) + Area(D2) )
+    */
+    struct NormalAreaSimilarity {
+      
+      inline
+      NormalAreaSimilarity( const TangentialCover & cover,
+                            double _a,
+                            AveragingMode nd = SimpleAveraging )
+        : myCover( cover ), myAveragingMode( nd ), a( _a )
+      {}
+
+      inline
+      NormalAreaSimilarity( const NormalSimilarity & other )
+        : myCover( other.myCover ), myAveragingMode( other.myAveragingMode ),
+          a( other.a )
+      {}
+      
+      double operator()( const Vertex & v1, const Vertex & v2 ) const
+      {
+        RealVector n1, n2;
+        myCover.getEstimatedNormal( n1, v1, myAveragingMode );
+        myCover.getEstimatedNormal( n2, v2, myAveragingMode );
+        double d = acos( n1.dot( n2 ) );
+        double R = a + 2.0*sqrt( myCover.varianceNormal( v1, myAveragingMode ) );
+        double r = a + 2.0*sqrt( myCover.varianceNormal( v2, myAveragingMode ) );
+        double A1 = M_PI*R*R;
+        double A2 = M_PI*r*r;
+        double A = 0.0;
+        if ( (R+r) <= d ) A = 0.0;
+        else if ( R >= (d+r) ) A = A2;
+        else if ( r >= (d+R) ) A = A1;
+        else A = r*r*acos( (d*d+r*r-R*R) / (2*d*r) ) 
+               + R*R*acos( (d*d+R*R-r*r) / (2*d*R) )
+               - sqrt( (-d+r+R)*(d+r-R)*(d-r+R)*(d+r+R) ) / 2.0;
+        return ( A1+A2 > 0.0 ) ? 2.0 * A / (A1 + A2) : 0.0;
+      } 
+      
+      const TangentialCover & myCover;
+      AveragingMode myAveragingMode;
+      double a;
+    };
     
     /** 
         The indices of maximal planes are stored in a vector. The
@@ -139,6 +240,7 @@ namespace DGtal
         according to the comparator.
     */
     typedef std::vector<Index> MaximalPlaneSummaryIndices;
+    typedef typename MaximalPlaneSummaryIndices::const_iterator MaximalPlaneSummaryIndicesConstIterator;
 
     typedef std::map<Vertex, MaximalPlaneSummaryIndices> MapVertex2MPSI;
     typedef std::vector<MPS> MaximalPlaneSummaryTable;
@@ -259,6 +361,23 @@ namespace DGtal
 			     const std::vector<Scalar> & coefs ) const;
 
     /**
+       @param p any vertex.
+       @param nd the mode chosen for computing normals.
+       @return the estimated (unbiased) variance of the normal.
+    */
+    Scalar varianceNormal( Vertex p,
+                           AveragingMode nd = SimpleAveraging ) const;
+    
+    /**
+       @param p any vertex.
+       @param coefs the averaging coefficients.
+       @return the estimated (unbiased) variance of the normal.
+       @see getAveragingCoefficients
+    */
+    Scalar varianceNormal( Vertex p,
+                           const std::vector<Scalar> & coefs ) const;
+
+    /**
        Computes the averaging coefficients for the given vertex [p]
        according to the choosen averaging mode.
 
@@ -280,7 +399,7 @@ namespace DGtal
 
        NB: non-const method because of std::map::operator[].
     */
-    MaximalPlaneIndicesConstIterator begin( const Vertex & vtx );
+    MaximalPlaneSummaryIndicesConstIterator begin( const Vertex & vtx );
     /**
        @param vtx any vertex of the surface.
 
@@ -289,7 +408,25 @@ namespace DGtal
 
        NB: non-const method because of std::map::operator[].
     */
-    MaximalPlaneIndicesConstIterator end( const Vertex & vtx );
+    MaximalPlaneSummaryIndicesConstIterator end( const Vertex & vtx );
+
+    /**
+       @param mp any valid maximal plane index.
+       @return the associated maximal plane summary.
+    */
+    const MPS & maximalPlaneSummary( Index mp ) const;
+
+    /**
+       Sorts planes from the biggest to the smallest.
+    */
+    void sortPlanes();
+
+    /**
+       Keep only \a ratio percent of the planes, and at least 1. The
+       choice 0.5 corresponds to keeping all planes above the median,
+       and the median itself. You should call sortPlanes() before. 
+     */
+    void purgePlanes( double ratio = 0.5 );
 
     // ----------------------- Interface --------------------------------------
   public:

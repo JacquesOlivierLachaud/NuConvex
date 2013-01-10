@@ -19,10 +19,14 @@
 #include "NuConvexSet.h"
 #include "DigitalSurface2InnerPointFunctor.h"
 #include "TangentialCover.h"
+#include "MetricCluster.h"
+#include "FuzzyPartition.h"
 
 
 static const bool ColorAccordingToNbMP = false;
-
+static const bool ColorAccordingToNbClusters = false;
+static const bool ColorAccordingToRandom = true;
+static const bool FuzzyPartitioning = true;
 typedef float Vec3f[ 3 ];
 
 template <typename KSpace>
@@ -120,6 +124,7 @@ struct SurfelAreaEstimator
 };
 
 
+
 // Good version
 template < typename DigitalSurface, 
            typename VertexEmbedder >
@@ -129,7 +134,8 @@ outputNuConvexSetNormals( ostream & out,
                           const VertexEmbedder & embedder,
                           unsigned int nup,
                           unsigned int nuq,
-                          unsigned int nbMax )
+                          unsigned int nbMax,
+                          double ratio, double simthreshold )
 {
   typedef TangentialCover<DigitalSurface,VertexEmbedder, DGtal::int64_t>
     MyTangentialCover;
@@ -137,26 +143,107 @@ outputNuConvexSetNormals( ostream & out,
   typedef typename KSpace::Space::RealVector RealVector;
   typedef typename DigitalSurface::Vertex Vertex;
   typedef typename MyTangentialCover::Index Index;
+
+  static const typename MyTangentialCover::AveragingMode averaging = 
+    MyTangentialCover::RadiusAndDistanceAveraging; //SimpleAveraging; // DistanceAveraging;
+  // DistanceAveraging: seems best
+  // RadiusAndDistanceAveraging: seems also best
+  // SimpleAveraging: fair
+  // InOutAveraging: same as SimpleAveraging
+  // MaxProjectedPlane: not good.
   const KSpace & ks = digSurf.container().space();
   MyTangentialCover tgtCover;
   tgtCover.init( digSurf, embedder, nup, nuq, 400 );
   tgtCover.computeOnce( nbMax );
   trace.info() << std::endl;
+  trace.beginBlock( "Sorting planes" );
+  tgtCover.sortPlanes();
+  tgtCover.purgePlanes( ratio );
+  trace.endBlock();
+
+  // Random colors
+  std::map< Vertex, Color > mapVertexColor;
+  for ( typename DigitalSurface::ConstIterator it = digSurf.begin(), 
+          itE = digSurf.end(); it != itE; ++it )
+    {
+      Color x( random() % 256, random() % 256, random() % 256 );
+      mapVertexColor[ *it ] = x;
+    }
+
+  if ( FuzzyPartitioning )
+    {
+      // typedef typename MyTangentialCover::NormalSimilarity Similarity;
+      typedef typename MyTangentialCover::NormalAreaSimilarity Similarity;
+      typedef FuzzyPartition< DigitalSurface, 
+                              Similarity > Partition;
+      trace.beginBlock( "Partition surface" );
+      // Similarity similarity( tgtCover, averaging );
+      Similarity similarity( tgtCover, 0.05, averaging );
+      Partition partition( digSurf, similarity );
+      unsigned int nbC = partition.partition( simthreshold );
+      trace.info() << "- Partition has " << nbC << " components." << std::endl;
+      trace.endBlock();
+      for ( typename DigitalSurface::ConstIterator it = digSurf.begin(), 
+              itE = digSurf.end(); it != itE; ++it )
+        {
+          Vertex rep1 = partition.representative( *it );
+          if ( rep1 != *it )
+            mapVertexColor[ *it ] = mapVertexColor[ rep1 ];
+        }
+    }
+
   HueShadeColorMap<Index,1> hueShade( 0, nbMax );
+  HueShadeColorMap<unsigned int,1> hueShade2( 0, 10 );
   Color color( 150, 150, 180 );
+  Color c;
   RealVector normal;
   for ( typename DigitalSurface::ConstIterator 
           it = digSurf.begin(), itE = digSurf.end();
         it != itE; ++it )
     {
-      typedef typename MyTangentialCover::MaximalPlaneIndicesConstIterator MPIConstIterator;
+      typedef typename MyTangentialCover::MaximalPlaneSummaryIndicesConstIterator MPSIConstIterator;
       Vertex p = *it;
-      tgtCover.getEstimatedNormal( normal, p, MyTangentialCover::SimpleAveraging );
+      tgtCover.getEstimatedNormal( normal, p, averaging );
       unsigned int nbMP = 0;
-      for ( MPIConstIterator itMPI = tgtCover.begin( p ), itMPIEnd = tgtCover.end( p );
-            itMPI != itMPIEnd; ++itMPI )
-        ++nbMP;
-      Color c = ColorAccordingToNbMP ? hueShade( nbMP ) : color;
+      c = color;
+      if ( ColorAccordingToNbMP )
+        {
+          for ( MPSIConstIterator itMPSI = tgtCover.begin( p ), itMPSIEnd = tgtCover.end( p );
+                itMPSI != itMPSIEnd; ++itMPSI )
+            ++nbMP;
+          c = hueShade( nbMP );
+        }
+      if ( ColorAccordingToNbClusters )
+        {
+          typedef SquaredEuclideanDistance<RealVector> SqDistance;
+          typedef MetricCluster< RealVector, SqDistance > Cluster;
+          typedef std::vector< RealVector > Data;
+          Data normals;
+          SqDistance sqDistance;
+          for ( MPSIConstIterator itMPSI = tgtCover.begin( p ), itMPSIEnd = tgtCover.end( p );
+                itMPSI != itMPSIEnd; ++itMPSI )
+            normals.push_back( tgtCover.maximalPlaneSummary( *itMPSI ).normal );
+          // normals.resize( normals.size() / 2 + 1 );
+          Cluster cluster;
+          cluster.init( sqDistance, normals.begin(), normals.end() );
+          double indexI_1 = cluster.indexSigma();
+          trace.info() << "#MP=" << normals.size() << std::endl;
+          unsigned int best = 1;
+          for ( unsigned int k = 2; k < (normals.size()-1) && ( k < 10 ); ++k )
+            {
+              cluster.randomClusters( k );
+              cluster.Lloyd( 100 );
+              double indexI_2 = cluster.indexSigma(); // cluster.indexI( 2 );
+              if ( indexI_1 > indexI_2 ) break;
+              indexI_1 = indexI_2;
+              best = k;
+            }
+          c = (best == 1) ? Color::Red : hueShade2( best );
+        }
+      if ( ColorAccordingToRandom )
+        {
+          c = mapVertexColor[ p ];
+        }
       outputCellInColorWithNormal( out, 
                                    ks, p, c, normal );
     }
@@ -164,7 +251,7 @@ outputNuConvexSetNormals( ostream & out,
 
 void usage( int, char** argv )
 {
-  std::cerr << "Usage: " << argv[ 0 ] << " <fileName.vol> <minT> <maxT> <p> <q> <n>" << std::endl;
+  std::cerr << "Usage: " << argv[ 0 ] << " <fileName.vol> <minT> <maxT> <p> <q> <n> <ratio> <simthreshold>" << std::endl;
   std::cerr << "Computes maximal planes and displays normals of the shape stored in vol file <fileName.vol>." << std::endl;
   std::cerr << "\t - voxel v belongs to the shape iff its value I(v) follows minT < I(v) <= maxT." << std::endl;
   std::cerr << "\t - the rational number p/q is the width of maximal planes." << std::endl;
@@ -186,6 +273,8 @@ int main( int argc, char** argv )
   unsigned int p = argc >= 5 ? atoi( argv[ 4 ] ) : 1;
   unsigned int q = argc >= 6 ? atoi( argv[ 5 ] ) : 1;
   unsigned int nbMax = argc >= 7 ? atoi( argv[ 6 ] ) : 1;
+  double ratio = argc >= 8 ? atof( argv[ 7 ] ) : 0.5;
+  double simthreshold = argc >= 9 ? atof( argv[ 8 ] ) : 0.8;
   //! [convex-normals-readVol]
   trace.beginBlock( "Reading vol file into an image." );
   using namespace Z3i;
@@ -235,7 +324,8 @@ int main( int argc, char** argv )
   typedef DigitalSurface2InnerPointFunctor<MyDigitalSurface> VertexEmbedder;
   VertexEmbedder embedder( digSurf );
   ofstream outFile( "titi.txt" );
-  outputNuConvexSetNormals( outFile, digSurf, embedder, p, q, nbMax );
+  outputNuConvexSetNormals( outFile, digSurf, embedder, p, q, nbMax, 
+                            ratio, simthreshold );
   outFile.close();
   return true ? 0 : 1;
 }

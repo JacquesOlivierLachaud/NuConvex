@@ -1,0 +1,153 @@
+/**
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ **/
+
+/**
+ * @file FuzzyPartition.ih
+ * @author Jacques-Olivier Lachaud (\c jacques-olivier.lachaud@univ-savoie.fr )
+ * Laboratory of Mathematics (CNRS, UMR 5127), University of Savoie, France
+ *
+ * @date 2013/01/10
+ *
+ * Implementation of inline methods defined in FuzzyPartition.h
+ *
+ * This file is part of the DGtal library.
+ */
+
+
+//////////////////////////////////////////////////////////////////////////////
+#include <cstdlib>
+//////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// IMPLEMENTATION of inline methods.
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// ----------------------- Standard services ------------------------------
+
+//-----------------------------------------------------------------------------
+template <typename TGraph, typename TSimilarity>
+inline
+DGtal::FuzzyPartition<TGraph,TSimilarity>::
+~FuzzyPartition()
+{
+}
+//-----------------------------------------------------------------------------
+template <typename TGraph, typename TSimilarity>
+inline
+DGtal::FuzzyPartition<TGraph,TSimilarity>::
+FuzzyPartition( const Graph & graph, const Similarity & similarity )
+  : myGraph( graph ), mySimilarity( similarity ),
+    myRankMap(), myRankAssociativePropertyMap( myRankMap ),
+    myParentMap(), myParentAssociativePropertyMap( myParentMap ),
+    myDisjointSets( myRankAssociativePropertyMap, myParentAssociativePropertyMap )
+{
+}
+//-----------------------------------------------------------------------------
+template <typename TGraph, typename TSimilarity>
+inline
+unsigned int
+DGtal::FuzzyPartition<TGraph,TSimilarity>::
+partition( double threshold )
+{
+  // Initializes to singleton.
+  for ( ConstIterator it = myGraph.begin(), itE = myGraph.end();
+        it != itE; ++it )
+    {
+      myDisjointSets.make_set( *it );
+    }
+  // Check all pairs (Vertex, Vertex) one at a time.
+  std::vector< Vertex > neighbors;
+  for ( ConstIterator it = myGraph.begin(), itE = myGraph.end();
+        it != itE; ++it )
+    {
+      Vertex v1 = *it;
+      std::back_insert_iterator< std::vector< Vertex > > outIt = std::back_inserter( neighbors );
+      myGraph.writeNeighbors( outIt, v1 );
+      Vertex rep1 = myDisjointSets.find_set( v1 );
+      for ( typename std::vector< Vertex >::const_iterator itNeigh = neighbors.begin(),
+              itNeighEnd = neighbors.end(); itNeigh != itNeighEnd; ++itNeigh )
+        {
+          Vertex v2 = *itNeigh;
+          Vertex rep2 = myDisjointSets.find_set( v2 );
+          if ( v1 != v2 )
+            {
+              if ( mySimilarity( v1, v2 ) >= threshold )
+                myDisjointSets.link( v1, v2 );
+            }
+        }
+      neighbors.clear();
+    }
+  // Flatten the tree so that the parent of each Vertex is its representative.
+  myDisjointSets.compress_sets( myGraph.begin(), myGraph.end() );
+  return myDisjointSets.count_sets( myGraph.begin(), myGraph.end() );
+}
+//-----------------------------------------------------------------------------
+template <typename TGraph, typename TSimilarity>
+inline
+typename DGtal::FuzzyPartition<TGraph,TSimilarity>::Vertex
+DGtal::FuzzyPartition<TGraph,TSimilarity>::
+representative( const Vertex & v )
+{
+  return myDisjointSets.find_set( v );
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Interface - public :
+
+/**
+ * Writes/Displays the object on an output stream.
+ * @param out the output stream where the object is written.
+ */
+template <typename TGraph, typename TSimilarity>
+inline
+void
+DGtal::FuzzyPartition<TGraph,TSimilarity>::selfDisplay ( std::ostream & out ) const
+{
+  out << "[FuzzyPartition]";
+}
+
+/**
+ * Checks the validity/consistency of the object.
+ * @return 'true' if the object is valid, 'false' otherwise.
+ */
+template <typename TGraph, typename TSimilarity>
+inline
+bool
+DGtal::FuzzyPartition<TGraph,TSimilarity>::isValid() const
+{
+    return true;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Implementation of inline functions                                        //
+
+template <typename TGraph, typename TSimilarity>
+inline
+std::ostream&
+DGtal::operator<< ( std::ostream & out, 
+		  const FuzzyPartition<TGraph,TSimilarity> & object )
+{
+  object.selfDisplay( out );
+  return out;
+}
+
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+
+

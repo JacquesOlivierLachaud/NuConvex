@@ -1,0 +1,422 @@
+/**
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ **/
+
+/**
+ * @file MetricCluster.ih
+ * @author Jacques-Olivier Lachaud (\c jacques-olivier.lachaud@univ-savoie.fr )
+ * Laboratory of Mathematics (CNRS, UMR 5127), University of Savoie, France
+ *
+ * @date 2013/01/08
+ *
+ * Implementation of inline methods defined in MetricCluster.h
+ *
+ * This file is part of the DGtal library.
+ */
+
+
+//////////////////////////////////////////////////////////////////////////////
+#include <cstdlib>
+#include <cmath>
+//////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// IMPLEMENTATION of inline methods.
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+// ----------------------- Standard services ------------------------------
+
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+DGtal::MetricCluster<TVector,TSquaredDistance>::~MetricCluster()
+{
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+DGtal::MetricCluster<TVector,TSquaredDistance>::MetricCluster()
+{
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+unsigned int 
+DGtal::MetricCluster<TVector,TSquaredDistance>::K() const
+{
+  return myClusterCentroids.size();
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+unsigned int 
+DGtal::MetricCluster<TVector,TSquaredDistance>::N() const
+{
+  return myData.size();
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+void
+DGtal::MetricCluster<TVector,TSquaredDistance>::clear()
+{
+  myData.clear();
+  myClusterCentroids.clear();
+  myClustering.clear();
+  myClusterSizes.clear();
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+template <typename Iterator>
+inline
+void
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+init( const SquaredDistance & sqDistance,
+      Iterator itb, Iterator ite )
+{
+  clear();
+  mySquaredDistance = sqDistance;
+  for ( ; itb != ite; ++itb )
+    {
+      myData.push_back( *itb );
+      myClustering.push_back( 0 );
+    }
+  myClusterCentroids.push_back( Vector::zero );
+  myClusterSizes.push_back( N() );
+  computeCentroids();
+  computeE1();
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+void
+DGtal::MetricCluster<TVector,TSquaredDistance>::computeCentroids()
+{
+  // Reset centroids.
+  for ( unsigned int k = 0; k < K(); ++k )
+    myClusterCentroids[ k ] = Vector::zero;
+  // Compute sums of vectors.
+  for ( unsigned int n = 0; n < N(); ++n )
+    myClusterCentroids[ myClustering[ n ] ] += myData[ n ];
+  // Divide by size of cluster.
+  for ( unsigned int k = 0; k < K(); ++k )
+    myClusterCentroids[ k ] /= (Scalar) myClusterSizes[ k ];
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+typename DGtal::MetricCluster<TVector,TSquaredDistance>::Scalar
+DGtal::MetricCluster<TVector,TSquaredDistance>::energy() const
+{
+  Scalar energy = (Scalar) 0;
+  for ( unsigned int n = 0; n < N(); ++n )
+    energy += squaredDistance( myData[ n ], myClustering[ n ] );
+  return energy;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+typename DGtal::MetricCluster<TVector,TSquaredDistance>::Scalar
+DGtal::MetricCluster<TVector,TSquaredDistance>::energyK() const
+{
+  Scalar energy = (Scalar) 0;
+  for ( unsigned int n = 0; n < N(); ++n )
+    energy += distance( myData[ n ], myClustering[ n ] );
+  return energy;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+void
+DGtal::MetricCluster<TVector,TSquaredDistance>::computeClusters()
+{
+  for ( unsigned int k = 0; k < K(); ++k )
+    myClusterSizes[ k ] = 0;
+  for ( unsigned int n = 0; n < N(); ++n )
+    {
+      unsigned int bestK = 0;
+      Scalar bestD = squaredDistance( myData[ n ], bestK );
+      for ( unsigned int k = 1; k < K(); ++k )
+        {
+          Scalar d = squaredDistance( myData[ n ], k );
+          if ( d < bestD )
+            {
+              bestD = d;
+              bestK = k;
+            }
+        }
+      myClustering[ n ] = bestK;
+      myClusterSizes[ bestK ] += 1;
+    }
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+void
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+randomClusters( unsigned int k )
+{
+  ASSERT( k < N() );
+  myClusterCentroids.resize( k );
+  myClusterSizes.resize( k );
+  std::set< unsigned int > indices;
+  for ( unsigned int i = 0; i < k; )
+    {
+      unsigned int j = random() % N();
+      if ( indices.find( j ) == indices.end() )
+        {
+          indices.insert( j );
+          ++i;
+        }
+    }
+  k = 0;
+  for ( std::set< unsigned int >::const_iterator it = indices.begin(),
+          itE = indices.end(); it != itE; ++it )
+    {
+      myClusterCentroids[ k++ ] = myData[ *it ];
+    }
+  computeClusters();
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+typename DGtal::MetricCluster<TVector,TSquaredDistance>::Scalar
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+squaredDistance( const Vector & v, unsigned int k ) const
+{
+  return mySquaredDistance( v, myClusterCentroids[ k ] );
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+typename DGtal::MetricCluster<TVector,TSquaredDistance>::Scalar
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+distance( const Vector & v, unsigned int k ) const
+{
+  return sqrt( mySquaredDistance( v, myClusterCentroids[ k ] ) );
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+unsigned int
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+Lloyd( unsigned int max )
+{
+  trace.beginBlock( "MetricCluster::Lloyd" );
+  Scalar e = energy();
+  unsigned int i = 0;
+  while ( i < max )
+    {
+      trace.info() << "i=" << i << " " << (*this) << std::endl;
+      computeCentroids();
+      computeClusters();
+      Scalar new_e = energy();
+      if ( new_e == e ) break;
+      e = new_e;
+      ++i;
+    }
+  trace.endBlock();
+  return i;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+double
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+indexI( double p ) const
+{
+  Scalar I = myE1 / energyK() * distanceK() / (Scalar) K();
+  return std::pow( NumberTraits<Scalar>::castToDouble( I ), p );
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+double
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+indexI1( double p ) const
+{
+  if ( K() > 1 ) return indexI( p );
+  Scalar I = radius( 0 );
+  return std::pow( NumberTraits<Scalar>::castToDouble( I+I ), p );
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+double
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+indexSigma() const
+{
+  Scalar d = 0;
+  for ( unsigned int k = 0; k < K(); ++k )
+    {
+      d += sqrt( variance( k ) ); // / ( myClusterSizes[ k ] + 1 );
+    }
+  return 1.0 / ( d * K() );
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+typename DGtal::MetricCluster<TVector,TSquaredDistance>::Scalar
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+radius( unsigned int k ) const
+{
+  Scalar d = 0;
+  for ( unsigned int n = 0; n < N(); ++n )
+    {
+      if ( myClustering[ n ] == k )
+        {
+          Scalar d2 = sqrt( mySquaredDistance( myData[ n ],
+                                               myClusterCentroids[ k ] ) ); 
+          d = std::max( d, d2 );
+        }
+    }
+  return d;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+void
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+computeE1()
+{
+  ASSERT( K() == 1 );
+  myE1 = 0;
+  mySqE1 = 0;
+  for ( unsigned int n = 0; n < N(); ++n )
+    {
+      myE1 += distance( myData[ n ], 0 );
+      mySqE1 += squaredDistance( myData[ n ], 0 );
+    }
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+typename DGtal::MetricCluster<TVector,TSquaredDistance>::Scalar
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+distanceK() const
+{
+  Scalar d = 0;
+  for ( unsigned int k1 = 0; k1 < K(); ++k1 )
+    for ( unsigned int k2 = k1+1; k2 < K(); ++k2 )
+      {
+        Scalar d2 = sqrt( mySquaredDistance( myClusterCentroids[ k1 ], 
+                                             myClusterCentroids[ k2 ] ) );
+        d = std::max( d, d2 );
+    }
+  return d;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+bool
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+onlyOne( double upperBoundRatio ) const
+{
+  ASSERT( K() == 2 );
+
+  Scalar SqE1 = mySqE1;
+  Scalar SqE2 = energy();
+  // for a perfect disk, SqE1 = r^4*pi/2, while SqE2 = 2*r^4*11*pi/36
+  // so ratio is 9/11. Otherwise, SqE2 tends to be smaller.
+  Scalar ratio = SqE1 / SqE2 * (Scalar) 11 / (Scalar) 9;
+  trace.info() << "SqE1/SqE2 / (9/11) = " << ratio << std::endl;
+  return ratio < upperBoundRatio;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+typename DGtal::MetricCluster<TVector,TSquaredDistance>::Scalar
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+variance( unsigned int k ) const
+{
+  Scalar d = 0;
+  for ( unsigned int n = 0; n < N(); ++n )
+    {
+      if ( myClustering[ n ] == k )
+        {
+          d += mySquaredDistance( myData[ n ],
+                                  myClusterCentroids[ k ] ); 
+        }
+    }
+  return ( myClusterSizes[ k ] > 1 ) 
+    ? d / (Scalar) ( myClusterSizes[ k ] - 1 )
+    : 0;
+}
+//-----------------------------------------------------------------------------
+template <typename TVector, typename TSquaredDistance>
+inline
+typename DGtal::MetricCluster<TVector,TSquaredDistance>::Scalar
+DGtal::MetricCluster<TVector,TSquaredDistance>::
+normalSimilarity() const
+{
+  Scalar d = 0;
+  for ( unsigned int k = 0; k < K(); ++k )
+    {
+      d += myClusterSizes[ k ] * variance( k );
+    }
+  return d / energy();
+}
+///////////////////////////////////////////////////////////////////////////////
+// Interface - public :
+
+/**
+ * Writes/Displays the object on an output stream.
+ * @param out the output stream where the object is written.
+ */
+template <typename TVector, typename TSquaredDistance>
+inline
+void
+DGtal::MetricCluster<TVector,TSquaredDistance>::selfDisplay ( std::ostream & out ) const
+{
+  out << "[MetricCluster";
+  out << " N=" << N() << " K=" << K() << " E=" << energy();
+  out << " c=(";
+  for ( unsigned int k = 0; k < K(); ++k )
+    out << " " << myClusterSizes[ k ];
+  out << " ) ]";
+}
+
+/**
+ * Checks the validity/consistency of the object.
+ * @return 'true' if the object is valid, 'false' otherwise.
+ */
+template <typename TVector, typename TSquaredDistance>
+inline
+bool
+DGtal::MetricCluster<TVector,TSquaredDistance>::isValid() const
+{
+    return true;
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Implementation of inline functions                                        //
+
+template <typename TVector, typename TSquaredDistance>
+inline
+std::ostream&
+DGtal::operator<< ( std::ostream & out, 
+		  const MetricCluster<TVector,TSquaredDistance> & object )
+{
+  object.selfDisplay( out );
+  return out;
+}
+
+//                                                                           //
+///////////////////////////////////////////////////////////////////////////////
+
+

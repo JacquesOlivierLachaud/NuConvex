@@ -13,3 +13,6 @@ TARGET_LINK_LIBRARIES(convexcover ${DGTAL_LIBRARIES})
 ADD_EXECUTABLE(convexnormals convex-normals)
 TARGET_LINK_LIBRARIES(convexnormals ${DGTAL_LIBRARIES})
 
+ADD_EXECUTABLE(testMetricCluster testMetricCluster)
+TARGET_LINK_LIBRARIES(testMetricCluster ${DGTAL_LIBRARIES})
+
