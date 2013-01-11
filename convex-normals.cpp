@@ -14,6 +14,7 @@
 #include "DGtal/io/readers/VolReader.h"
 #include "DGtal/io/Color.h"
 #include "DGtal/io/colormaps/HueShadeColorMap.h"
+#include "DGtal/io/colormaps/ColorBrightnessColorMap.h"
 #include "DGtal/images/imagesSetsUtils/SetFromImage.h"
 #include "BasicHPolytopeND.h"
 #include "NuConvexSet.h"
@@ -142,10 +143,13 @@ outputNuConvexSetNormals( ostream & out,
   typedef typename DigitalSurface::KSpace KSpace;
   typedef typename KSpace::Space::RealVector RealVector;
   typedef typename DigitalSurface::Vertex Vertex;
+  typedef typename DigitalSurface::Arc Arc;
+  typedef typename DigitalSurface::ArcRange ArcRange;
+  typedef typename DigitalSurface::SCell SCell;
   typedef typename MyTangentialCover::Index Index;
 
   static const typename MyTangentialCover::AveragingMode averaging = 
-    MyTangentialCover::RadiusAndDistanceAveraging; //SimpleAveraging; // DistanceAveraging;
+    MyTangentialCover::DistanceAveraging;
   // DistanceAveraging: seems best
   // RadiusAndDistanceAveraging: seems also best
   // SimpleAveraging: fair
@@ -153,8 +157,9 @@ outputNuConvexSetNormals( ostream & out,
   // MaxProjectedPlane: not good.
   const KSpace & ks = digSurf.container().space();
   MyTangentialCover tgtCover;
+  MyTangentialCover::current = &tgtCover;
   tgtCover.init( digSurf, embedder, nup, nuq, 400 );
-  tgtCover.computeOnce( nbMax );
+  tgtCover.computeOnceMemoryLess( nbMax, false, 20000 );
   trace.info() << std::endl;
   trace.beginBlock( "Sorting planes" );
   tgtCover.sortPlanes();
@@ -172,13 +177,16 @@ outputNuConvexSetNormals( ostream & out,
 
   if ( FuzzyPartitioning )
     {
-      // typedef typename MyTangentialCover::NormalSimilarity Similarity;
-      typedef typename MyTangentialCover::NormalAreaSimilarity Similarity;
+      // Shade colors for dissimilar edges.
+      ColorBrightnessColorMap<double> whiteShade( 0.0, simthreshold, Color::White );
+
+      typedef typename MyTangentialCover::NormalSimilarity Similarity;
+      // typedef typename MyTangentialCover::NormalAreaSimilarity Similarity;
       typedef FuzzyPartition< DigitalSurface, 
                               Similarity > Partition;
       trace.beginBlock( "Partition surface" );
-      // Similarity similarity( tgtCover, averaging );
-      Similarity similarity( tgtCover, 0.05, averaging );
+      Similarity similarity( tgtCover, averaging );
+      //Similarity similarity( tgtCover, 0.05, averaging );
       Partition partition( digSurf, similarity );
       unsigned int nbC = partition.partition( simthreshold );
       trace.info() << "- Partition has " << nbC << " components." << std::endl;
@@ -186,9 +194,25 @@ outputNuConvexSetNormals( ostream & out,
       for ( typename DigitalSurface::ConstIterator it = digSurf.begin(), 
               itE = digSurf.end(); it != itE; ++it )
         {
-          Vertex rep1 = partition.representative( *it );
-          if ( rep1 != *it )
-            mapVertexColor[ *it ] = mapVertexColor[ rep1 ];
+          // Take care of color.
+          Vertex v1 = *it;
+          Vertex rep1 = partition.representative( v1 );
+          if ( rep1 != v1 )
+            mapVertexColor[ v1 ] = mapVertexColor[ rep1 ];
+          // Display separating edges.
+          ArcRange outArcs = digSurf.outArcs( v1 );
+          for ( typename ArcRange::const_iterator itArcs = outArcs.begin(),
+                  itArcsEnd = outArcs.end(); itArcs != itArcsEnd; ++itArcs )
+            {
+              Vertex v2 = digSurf.head( *itArcs );
+              if ( v1 < v2 )
+                {
+                  double s = similarity( v1, v2 );
+                  if ( s < simthreshold )
+                    outputCellInColor( out, ks, digSurf.separator( *itArcs ),
+                                       whiteShade( s ) );
+                }
+            }
         }
     }
 
@@ -259,6 +283,19 @@ void usage( int, char** argv )
             << " Choosing 1 is a segmentation of the shape boundary into planes." << std::endl;
 }
 
+using namespace Z3i;
+typedef ImageSelector < Domain, int>::Type Image;
+typedef SurfelAdjacency<KSpace::dimension> MySurfelAdjacency;
+typedef DigitalSetBoundary<KSpace, DigitalSet > MyDigitalSurfaceContainer;
+typedef DigitalSurface<MyDigitalSurfaceContainer> MyDigitalSurface;
+typedef DigitalSurface2InnerPointFunctor<MyDigitalSurface> VertexEmbedder;
+
+namespace DGtal {
+  template<>
+  TangentialCover< MyDigitalSurface,VertexEmbedder, DGtal::int64_t>*
+  TangentialCover< MyDigitalSurface,VertexEmbedder, DGtal::int64_t>::current = 0;
+}
+
 int main( int argc, char** argv )
 {
   if ( argc < 4 )
@@ -277,8 +314,6 @@ int main( int argc, char** argv )
   double simthreshold = argc >= 9 ? atof( argv[ 8 ] ) : 0.8;
   //! [convex-normals-readVol]
   trace.beginBlock( "Reading vol file into an image." );
-  using namespace Z3i;
-  typedef ImageSelector < Domain, int>::Type Image;
   Image image = VolReader<Image>::importVol(inputFilename);
   DigitalSet set3d (image.domain());
   SetPredicate<DigitalSet> set3dPredicate( set3d );
@@ -301,14 +336,11 @@ int main( int argc, char** argv )
   //! [convex-normals-KSpace]
 
   //! [convex-normals-SurfelAdjacency]
-  typedef SurfelAdjacency<KSpace::dimension> MySurfelAdjacency;
   MySurfelAdjacency surfAdj( false ); // interior in all directions.
   //! [convex-normals-SurfelAdjacency]
 
   //! [convex-normals-SetUpDigitalSurface]
   trace.beginBlock( "Set up digital surface." );
-  typedef DigitalSetBoundary<KSpace, DigitalSet > MyDigitalSurfaceContainer;
-  typedef DigitalSurface<MyDigitalSurfaceContainer> MyDigitalSurface;
   MyDigitalSurfaceContainer* ptrSurfContainer = 
     new MyDigitalSurfaceContainer( ks, set3d, surfAdj );
   // typedef LightImplicitDigitalSurface<KSpace, SetPredicate<DigitalSet> > 
@@ -321,7 +353,6 @@ int main( int argc, char** argv )
   trace.endBlock();
   //! [convex-normals-SetUpDigitalSurface]
 
-  typedef DigitalSurface2InnerPointFunctor<MyDigitalSurface> VertexEmbedder;
   VertexEmbedder embedder( digSurf );
   ofstream outFile( "titi.txt" );
   outputNuConvexSetNormals( outFile, digSurf, embedder, p, q, nbMax, 

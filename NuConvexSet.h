@@ -215,6 +215,7 @@ namespace DGtal
     */
     void swap( NuConvexSet & other );
 
+
     // ----------------------- Interface --------------------------------------
   public:
 
@@ -244,7 +245,7 @@ namespace DGtal
     Container myVertices;
     bool myExtMode;
   public:
-    Container myRejectedVertices;
+    // Container myRejectedVertices;
 
     // ------------------------- Hidden services ------------------------------
   protected:

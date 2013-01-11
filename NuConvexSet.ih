@@ -176,7 +176,7 @@ compute( Scalar distanceUpperBound )
               if ( vstate == Rejected )
                 {
                   myVisitor.ignore();
-                  myRejectedVertices.push_back( v );
+                  //myRejectedVertices.push_back( v );
                 }
               else if ( extend || ( vstate == ExtendedAsIs ) )
                 {
@@ -189,7 +189,7 @@ compute( Scalar distanceUpperBound )
                   myVisitor.ignore();
                   Point p = coordinates( v );
                   myPolytope.add( ClosedHalfSpace( p - x0, p.dot( p - x0 ) ) );
-                  myRejectedVertices.push_back( v );
+                  //myRejectedVertices.push_back( v );
                 }
             }
         }
@@ -303,7 +303,7 @@ swap( NuConvexSet & other )
   myVertexPolytopePredicate.swap( other.myVertexPolytopePredicate );
   myVertices.swap( other.myVertices );
   std::swap( myExtMode, other.myExtMode );
-  myRejectedVertices.swap( other.myRejectedVertices );
+  //myRejectedVertices.swap( other.myRejectedVertices );
 }
 
 ///////////////////////////////////////////////////////////////////////////////

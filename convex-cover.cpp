@@ -105,11 +105,11 @@ bool viewNuConvexSet( Viewer3D & viewer,
            << ks.unsigns( *it );
   std::cerr << "nu-convex has " << nb << " surfels." << std::endl;
   unsigned int nb2 = 0;
-  for ( typename MyNuConvexSet::ConstIterator it = nuConvex.myRejectedVertices.begin(),
-          itE = nuConvex.myRejectedVertices.end(); it != itE; ++it, ++nb2 )
-    viewer << CustomColors3D( Color::Black, Color::Blue ) 
-           << ks.unsigns( *it );
-  std::cerr << "nu-convex has " << nb2 << " rejected surfels." << std::endl;
+  // for ( typename MyNuConvexSet::ConstIterator it = nuConvex.myRejectedVertices.begin(),
+  //         itE = nuConvex.myRejectedVertices.end(); it != itE; ++it, ++nb2 )
+  //   viewer << CustomColors3D( Color::Black, Color::Blue ) 
+  //          << ks.unsigns( *it );
+  // std::cerr << "nu-convex has " << nb2 << " rejected surfels." << std::endl;
   SurfelAreaEstimator<DigitalSurface> areaEstimator( digSurf );
   MaximalPlaneSummary<Space> mps;
   nuConvex.summarize( mps, areaEstimator );

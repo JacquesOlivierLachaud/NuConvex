@@ -75,6 +75,7 @@ namespace DGtal
   {
     // ----------------------- public types ------------------------------
   public:
+    typedef TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger> Self;
     typedef TDigitalSurface DigitalSurface;
     typedef TVertex2PointFunctor Vertex2PointFunctor;
     typedef TInternalInteger InternalInteger;
@@ -144,6 +145,20 @@ namespace DGtal
           > myCover.maximalPlaneSummary( i2 ).projectedArea;
       } 
       const TangentialCover & myCover;
+    };
+
+    struct MPSIAreaComparatorV2 {
+      inline
+      MPSIAreaComparatorV2()
+      {}
+
+      bool operator()( const Index & i1, const Index & i2 ) const
+      {
+        TangentialCover* ptrCover = TangentialCover::current;
+        ASSERT( ptrCover != 0 );
+        return ptrCover->maximalPlaneSummary( i1 ).projectedArea
+          < ptrCover->maximalPlaneSummary( i2 ).projectedArea;
+      } 
     };
 
     /**
@@ -232,6 +247,21 @@ namespace DGtal
       AveragingMode myAveragingMode;
       double a;
     };
+
+    struct Node {
+      Index mp;
+      unsigned int size;
+
+      inline Node( Index _mp, unsigned int _size )
+        : mp( _mp ), size( _size )
+      {}
+
+      inline
+      bool operator<( const Node & other ) const
+      {
+        return size < other.size;
+      }
+    };
     
     /** 
         The indices of maximal planes are stored in a vector. The
@@ -248,6 +278,10 @@ namespace DGtal
     typedef std::set<Index> MaximalPlaneIndices;
     typedef typename MaximalPlaneIndices::const_iterator MaximalPlaneIndicesConstIterator;
     typedef std::map<Vertex, MaximalPlaneIndices> MapVertex2MPI;
+
+    typedef std::set<Index, MPSIAreaComparatorV2> MaximalPlaneIndicesV2;
+    typedef typename MaximalPlaneIndicesV2::const_iterator MaximalPlaneIndicesV2ConstIterator;
+    typedef std::map<Vertex, MaximalPlaneIndicesV2> MapVertex2MPIV2;
 
 
     // ----------------------- Standard services ------------------------------
@@ -333,6 +367,13 @@ namespace DGtal
        to find a nu-width plane.
     */
     void computeOnce( unsigned int nbMaxPerVertex, 
+                      bool extensionMode = false );
+
+    void computeOnceMemoryLess( unsigned int nbMaxPerVertex, 
+                                bool extensionMode = false, 
+                                unsigned int nbMaxMemorized = 10000 );
+
+    void computeOnceV2( unsigned int nbMaxPerVertex, 
                       bool extensionMode = false );
 
 
@@ -444,7 +485,9 @@ namespace DGtal
     bool isValid() const;
 
     // ------------------------- Protected Datas ------------------------------
-  private:
+  public:
+    static Self* current;
+
     // ------------------------- Private Datas --------------------------------
   private:
 
@@ -468,6 +511,7 @@ namespace DGtal
 
     /// Stores completely the mapping vtx -> set of its MP.
     MapVertex2MPI myMapVtx2MPI;
+    MapVertex2MPIV2 myMapVtx2MPIV2;
     
     
     // ------------------------- Hidden services ------------------------------
@@ -514,6 +558,7 @@ namespace DGtal
     void setFather( Index mp, Index f );
 
     void cleanMaximalPlaneIndices( MaximalPlaneIndices & mpi );
+    void cleanMaximalPlaneIndicesV2( MaximalPlaneIndicesV2 & mpi );
 
   }; // end of class TangentialCover
 
