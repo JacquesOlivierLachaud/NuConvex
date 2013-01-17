@@ -469,18 +469,22 @@ outputNuConvexSetNormals( ostream & out,
       CanonicCellEmbedder<KSpace> canonicCellEmbedder( ks );
       CellMap mapUVtx2RealPoint;
       SCellMap mapVtx2RealPoint;
+      //      double maxDist = (double)nup / (double)nuq;
       for ( typename DigitalSurface::ConstIterator it = digSurf.begin(), 
               itE = digSurf.end(); it != itE; ++it )
         {
           Vertex vtx = *it;
-          // RealVector x = canonicCellEmbedder( ks.unsigns( vtx ) );
+          RealVector n1;
           Point p = embedder( vtx );
           RealVector x( (double) p[ 0 ], (double) p[ 1 ], (double) p[ 2 ] );
-          RealVector n;
           // better at 0.5 on cms
-          tgtCover.getEstimatedProjection( n, vtx, x, 0.5, averaging );
-          mapUVtx2RealPoint[ ks.unsigns( vtx ) ] = n;
-          mapVtx2RealPoint[ vtx ] = n;
+          tgtCover.getEstimatedProjection( n1, vtx, x, 0.5, averaging );
+          // Limiting distance does not seem an improvment.
+          // double d1 = (n1-x).norm();
+          // if ( d1 > maxDist ) n1 = x + (n1-x)*maxDist/d1;
+          // x = canonicCellEmbedder( ks.unsigns( vtx ) );
+          mapUVtx2RealPoint[ ks.unsigns( vtx ) ] = n1;
+          mapVtx2RealPoint[ vtx ] = n1;
         }
       CellEmbedder cellEmbedder( mapUVtx2RealPoint );
       SCellEmbedder scellEmbedder( mapVtx2RealPoint );
