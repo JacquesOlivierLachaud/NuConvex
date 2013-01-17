@@ -196,6 +196,11 @@ namespace DGtal
     /// Sorts nu-convex set vertices in the container.
     void sort();
 
+    /// Clears most of "internal" data to occupy as less memory as
+    /// possible. Keeps vertices and geometric information. However,
+    /// you may not call compute() again to go on with further computation.
+    void compact();
+
     /**
        @param mps the object that stores the geometric summary of the nu-convex set.
 
@@ -237,7 +242,7 @@ namespace DGtal
     // ------------------------- Private Datas --------------------------------
   private:
 
-    Visitor myVisitor;
+    Visitor* myVisitor;
     const Vertex2PointFunctor* myVtx2PointFct;
     GenericNaivePlane myPlane;
     HPolytope myPolytope;

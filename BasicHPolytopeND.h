@@ -142,6 +142,11 @@ namespace DGtal
     */
     Size size() const;
 
+    /**
+       Resets the polytope.  The empty H-polytope is the whole space.
+    */
+    void clear();
+
     // ----------------------- Interface --------------------------------------
   public:
 

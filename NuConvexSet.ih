@@ -46,6 +46,7 @@ inline
 DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 ~NuConvexSet()
 {
+  if ( myVisitor != 0 ) delete myVisitor;
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
@@ -53,11 +54,11 @@ template < typename TSpace, typename TVisitor,
 inline
 DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 NuConvexSet( const Visitor & visitor, const Vertex2PointFunctor & vtx2pt )
-  : myVisitor( visitor ), myVtx2PointFct( &vtx2pt ), myPolytope(),
+  : myVisitor( 0 ), myVtx2PointFct( &vtx2pt ), myPolytope(),
     myVertexPolytopePredicate( myPolytope, vtx2pt ),
     myExtMode( true )
 {
-  
+  myVisitor = new Visitor( visitor );
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
@@ -97,7 +98,7 @@ bool
 DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 compute( Scalar distanceUpperBound )
 {
-  if ( myVisitor.finished() ) return true;
+  if ( myVisitor->finished() ) return true;
 
   // Stores the nodes at the same distance from the origin point.
   std::vector<Node> layer;
@@ -114,20 +115,20 @@ compute( Scalar distanceUpperBound )
   // Stores the points that are tested for the extension.
   std::vector<Point> points;
   // Stores the first node of the layer.
-  Node node = myVisitor.current();
+  Node node = myVisitor->current();
   // The origin of the nu-convex set.
   Point x0 = coordinates( node.first );
   myPlane.extend( x0 );
   // Computes the nu-convex set by testing vertices in the order given
   // by the visitor.
-  while ( ! myVisitor.finished() )
+  while ( ! myVisitor->finished() )
     {
-      node = myVisitor.current();
+      node = myVisitor->current();
       if ( ( distanceUpperBound >= NumberTraits<Scalar>::ZERO )
            && ( node.second > distanceUpperBound ) )
         break;
       // Get all vertices at same distance from x0.
-      myVisitor.getCurrentLayer( layer );
+      myVisitor->getCurrentLayer( layer );
       // Classify vertices of the layer.
       points.clear();
       for ( typename std::vector<Node>::const_iterator it = layer.begin(), 
@@ -157,7 +158,7 @@ compute( Scalar distanceUpperBound )
       // otherwise we must add them to the constraint polytope.
       while ( ! nodes_with_states.empty() )
         {
-          Node n = myVisitor.current();
+          Node n = myVisitor->current();
           nsIt = nodes_with_states.begin();
           while ( ( nsIt != nsItE ) && ( (*nsIt).first.first != n.first ) )
             ++nsIt;
@@ -166,7 +167,7 @@ compute( Scalar distanceUpperBound )
               // std::cerr << " ! [" << n.first
               //           << "," << n.second <<"] " << std::endl;
               lateLayer.push_back( n );
-              myVisitor.ignore();
+              myVisitor->ignore();
             }
           else
             {
@@ -175,18 +176,18 @@ compute( Scalar distanceUpperBound )
               nodes_with_states.erase( nsIt );
               if ( vstate == Rejected )
                 {
-                  myVisitor.ignore();
+                  myVisitor->ignore();
                   //myRejectedVertices.push_back( v );
                 }
               else if ( extend || ( vstate == ExtendedAsIs ) )
                 {
                   // then we can look for their neighbors.
-                  myVisitor.expand( myVertexPolytopePredicate );
+                  myVisitor->expand( myVertexPolytopePredicate );
                   myVertices.push_back( v );
                 }
               else // Extendable && ! extend
                 {
-                  myVisitor.ignore();
+                  myVisitor->ignore();
                   Point p = coordinates( v );
                   myPolytope.add( ClosedHalfSpace( p - x0, p.dot( p - x0 ) ) );
                   //myRejectedVertices.push_back( v );
@@ -198,11 +199,11 @@ compute( Scalar distanceUpperBound )
               it = lateLayer.begin(), 
               itE = lateLayer.end(); it != itE; ++it )
         {
-          myVisitor.pushAgain( *it );
+          myVisitor->pushAgain( *it );
         }
       lateLayer.clear();
     }
-  return myVisitor.finished();
+  return myVisitor->finished();
 }
 
 //-----------------------------------------------------------------------------
@@ -296,7 +297,7 @@ void
 DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 swap( NuConvexSet & other )
 {
-  myVisitor.swap( other.myVisitor );
+  myVisitor->swap( other.myVisitor );
   std::swap( myVtx2PointFct, other.myVtx2PointFct );
   myPlane.swap( other.myPlane );
   myPolytope.swap( other.myPolytope );
@@ -304,6 +305,19 @@ swap( NuConvexSet & other )
   myVertices.swap( other.myVertices );
   std::swap( myExtMode, other.myExtMode );
   //myRejectedVertices.swap( other.myRejectedVertices );
+}
+//-----------------------------------------------------------------------------
+template < typename TSpace, typename TVisitor,
+	   typename TVertex2PointFunctor, typename TInternalInteger >
+inline
+void
+DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
+compact()
+{
+  if ( myVisitor != 0 ) delete myVisitor;
+  myVisitor = 0;
+  myPlane.clear();
+  myPolytope.clear();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

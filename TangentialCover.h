@@ -371,7 +371,7 @@ namespace DGtal
 
     void computeOnceMemoryLess( unsigned int nbMaxPerVertex, 
                                 bool extensionMode = false, 
-                                unsigned int nbMaxMemorized = 10000 );
+                                std::size_t MaxMemory = 1000000000 );
 
     void computeOnceV2( unsigned int nbMaxPerVertex, 
                       bool extensionMode = false );
@@ -400,6 +400,33 @@ namespace DGtal
     */
     void getEstimatedNormal( RealVector & n, Vertex p,
 			     const std::vector<Scalar> & coefs ) const;
+
+    /**
+       Combines the projection estimation of \a x onto each of the maximal planes containing the vertex. 
+       @param n (modified) the position of the estimated projection of \a x according to the planes at vertex \a p.
+       @param p any vertex.
+       @param x the point to project onto the maximal plane
+       @param alpha a coefficient between 0 and 1 telling if the projection is closer to the lower plane (0) or closer to the upper plane (1), 0.5 is in-between.
+       @param nd the mode chosen for averaging projections.
+    */
+    void getEstimatedProjection( RealVector & n, Vertex p,
+                                 const RealVector & x, 
+                                 Scalar alpha = 0.5,
+                                 AveragingMode nd = SimpleAveraging ) const;
+
+    /**
+       Combines the projection estimation of \a x onto each of the maximal planes containing the vertex. 
+       @param n (modified) the position of the estimated projection of \a x according to the planes at vertex \a p.
+       @param p any vertex.
+       @param x the point to project onto the maximal plane
+       @param alpha a coefficient between 0 and 1 telling if the projection is closer to the lower plane (0) or closer to the upper plane (1), 0.5 is in-between.
+       @param coefs the averaging coefficients.
+       @see getAveragingCoefficients
+    */
+    void getEstimatedProjection( RealVector & n, Vertex p,
+                                 const RealVector & x, 
+                                 Scalar alpha,
+                                 const std::vector<Scalar> & coefs ) const;
 
     /**
        @param p any vertex.
@@ -450,6 +477,19 @@ namespace DGtal
        NB: non-const method because of std::map::operator[].
     */
     MaximalPlaneSummaryIndicesConstIterator end( const Vertex & vtx );
+
+    /**
+       @param vtx any vertex of the surface.
+
+       @return a reference to the set of indices of the maximal planes
+       that covers vertex \a vtx.
+    */
+    MaximalPlaneSummaryIndices & planeIndices( const Vertex & vtx );
+
+    /**
+       Given an index, returns its center vertex.
+    */
+    const Vertex & center( Index mp ) const;
 
     /**
        @param mp any valid maximal plane index.
@@ -512,6 +552,8 @@ namespace DGtal
     /// Stores completely the mapping vtx -> set of its MP.
     MapVertex2MPI myMapVtx2MPI;
     MapVertex2MPIV2 myMapVtx2MPIV2;
+    /// The mapping MP Index -> Vertex giving the center vertex of the MP.
+    std::vector<Vertex> myTableVertex;
     
     
     // ------------------------- Hidden services ------------------------------

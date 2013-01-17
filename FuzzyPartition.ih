@@ -83,7 +83,7 @@ partition( double threshold )
         {
           Vertex v2 = *itNeigh;
           Vertex rep2 = myDisjointSets.find_set( v2 );
-          if ( v1 != v2 )
+          if ( rep1 != rep2 ) // v1 != v2
             {
               if ( mySimilarity( v1, v2 ) >= threshold )
                 myDisjointSets.link( v1, v2 );

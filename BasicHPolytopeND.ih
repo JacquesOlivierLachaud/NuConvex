@@ -131,6 +131,14 @@ DGtal::BasicHPolytopeND<TVector>::size() const
   return myHalfSpaces.size();
 }
 
+//-----------------------------------------------------------------------------
+template <typename TVector>
+inline
+void
+DGtal::BasicHPolytopeND<TVector>::clear()
+{
+  myHalfSpaces.clear();
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Interface - public :

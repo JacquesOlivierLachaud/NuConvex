@@ -188,6 +188,8 @@ computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
       // Also not necessary, memorizes its statistics.
       MPS & mps = myMPSTable[ mp ];
       nuConvex->summarize( mps, areaEstimator );
+      nuConvex->compact();
+
       // Checks if this plane is included or includes the other planes that already covers this plane.
       bool isIncluded = false;
       typename MapVertex2MPI::iterator itMap = myMapVtx2MPI.find( p );
@@ -277,7 +279,7 @@ inline
 void
 DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
 computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
-                       unsigned int nbMaxMemorized )
+                       std::size_t maxMemory )
 {
   ASSERT( isValid() );
   clear(); // make sure members are empty
@@ -298,11 +300,11 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
   // std::priority_queue< Node > queue;
   std::queue< Node > queue;
   unsigned int nbNC = 0;
-
+  std::size_t memory = 0;
   // Compute maximal planes.
   unsigned int i = 0;
   std::vector<MyNuConvexSet*> tableNuConvexSets( size );
-  std::vector<Vertex> tableVertex( size );
+  myTableVertex.resize( size );
   for ( typename DigitalSurface::ConstIterator 
           it = surface().begin(), itE = surface().end();
         it != itE; ++it, ++mp, ++i )
@@ -311,15 +313,15 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
         trace.progressBar( (double) i, (double) size );
 
       // Check if there are too many nu-convex sets stored.
-      while ( nbNC >= nbMaxMemorized )
+      while ( memory >= maxMemory ) // ( nbNC >= nbMaxMemorized )
         {
           ASSERT( ! queue.empty() );
           // Node node = queue.top();
-          // queue.pop();
           Node node = queue.front();
           queue.pop();
           delete tableNuConvexSets[ node.mp ];
           tableNuConvexSets[ node.mp ] = 0;
+          memory -= sizeof( MyNuConvexSet ) + node.size * sizeof( Point );
           --nbNC;
         }
 
@@ -333,13 +335,16 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
       nuConvex->init( myP, myQ, myDiameter );
       nuConvex->compute( -1.0 );
       nuConvex->sort();
-      queue.push( Node( mp, nuConvex->size() ) );
-      ++nbNC;
-      tableVertex[ mp ] = p;
-
       // Also not necessary, memorizes its statistics.
       MPS & mps = myMPSTable[ mp ];
       nuConvex->summarize( mps, areaEstimator );
+
+      nuConvex->compact();
+      queue.push( Node( mp, nuConvex->size() ) );
+      memory += sizeof( MyNuConvexSet ) + nuConvex->size() * sizeof( Point );
+      ++nbNC;
+      myTableVertex[ mp ] = p;
+
       // Checks if this plane is included or includes the other planes that already covers this plane.
       bool isIncluded = false;
       typename MapVertex2MPI::iterator itMap = myMapVtx2MPI.find( p );
@@ -354,7 +359,7 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
             {
               Index otherMP = *itMPI; // no need to call father( *itMPI ) after cleaning.
               // Computes the maximal plane for this vertex.
-              Vertex otherP = tableVertex[ otherMP ];
+              Vertex otherP = myTableVertex[ otherMP ];
               SqEDToPoint distanceToPoint( sqed, coordinates( otherP ) );
               VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
               MyNuConvexSet* & otherNuConvex = tableNuConvexSets[ otherMP ];
@@ -365,7 +370,9 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
                   otherNuConvex->init( myP, myQ, myDiameter );
                   otherNuConvex->compute( -1.0 );
                   otherNuConvex->sort();
+                  otherNuConvex->compact();
                   queue.push( Node( otherMP, otherNuConvex->size() ) );
+                  memory += sizeof( MyNuConvexSet ) + otherNuConvex->size() * sizeof( Point );
                   ++nbNC;
                 }
               if ( nuConvex->size() <= otherNuConvex->size() )
@@ -427,7 +434,7 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
           addMPSToVertex( vtx, mp );
           if ( tableNuConvexSets[ mp ] == 0 )
             {
-              Vertex p = tableVertex[ mp ];
+              Vertex p = myTableVertex[ mp ];
               SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
               VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
               MyNuConvexSet* & nuConvex = tableNuConvexSets[ mp ];
@@ -436,6 +443,7 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
               nuConvex->init( myP, myQ, myDiameter );
               nuConvex->compute( -1.0 );
               nuConvex->sort();
+              nuConvex->compact();
             }
         }
       // clear memory.
@@ -623,6 +631,51 @@ getEstimatedNormal( RealVector & n, Vertex p,
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
           typename TInternalInteger >
 inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+getEstimatedProjection( RealVector & n, Vertex p,
+                        const RealVector & x, 
+                        Scalar alpha,
+                        AveragingMode nd ) const
+{
+  std::vector<Scalar> coefs;
+  this->getAveragingCoefficients( coefs, p, nd );
+  this->getEstimatedProjection( n, p, x, alpha, coefs );
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+void
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+getEstimatedProjection( RealVector & n, Vertex p,
+                        const RealVector & x, 
+                        Scalar alpha,
+                        const std::vector<Scalar> & coefs ) const
+{
+  typename MapVertex2MPSI::const_iterator itMap = myMapVtx2MPSI.find( p );
+  ASSERT( itMap != myMapVtx2MPSI.end() );
+  const MaximalPlaneSummaryIndices & mpsi = itMap->second;
+  ASSERT( coefs.size() >= mpsi.size() );
+  n.reset();
+  unsigned int i = 0;
+  RealVector x1, x2;
+  Scalar sum = 0;
+  for ( typename MaximalPlaneSummaryIndices::const_iterator 
+	  it = mpsi.begin(), it_end = mpsi.end();
+	it != it_end; ++it, ++i )
+    {
+      x1 = myMPSTable[ *it ].projectOntoUpperPlane( x );
+      x2 = myMPSTable[ *it ].projectOntoLowerPlane( x );
+      n += ( x1 * alpha + x2 * (1.0-alpha) ) * coefs[ i ];
+      sum += coefs[ i ];
+    }
+  n /= sum;
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
 typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::Scalar
 DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
 varianceNormal( Vertex p, AveragingMode nd ) const
@@ -796,6 +849,28 @@ end( const Vertex & vtx )
 {
   return myMapVtx2MPSI[ vtx ].end();
 }
+
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::MaximalPlaneSummaryIndices &
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+planeIndices( const Vertex & vtx )
+{
+  return myMapVtx2MPSI[ vtx ];
+}
+//-----------------------------------------------------------------------------
+template <typename TDigitalSurface, typename TVertex2PointFunctor,
+          typename TInternalInteger >
+inline
+const typename DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::Vertex &
+DGtal::TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger>::
+center( Index mp ) const
+{
+  return myTableVertex[ mp ];
+}
+
 //-----------------------------------------------------------------------------
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
           typename TInternalInteger >
@@ -861,7 +936,7 @@ addMPSToVertex( Vertex vtx, Index mp )
             }
         }
       return true;
-   }
+    }
 }
 //-----------------------------------------------------------------------------
 template <typename TDigitalSurface, typename TVertex2PointFunctor,
@@ -1006,7 +1081,7 @@ template <typename TDigitalSurface, typename TVertex2PointFunctor,
 inline
 std::ostream&
 DGtal::operator<< ( std::ostream & out, 
-		  const TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger> & object )
+                    const TangentialCover<TDigitalSurface, TVertex2PointFunctor, TInternalInteger> & object )
 {
   object.selfDisplay( out );
   return out;

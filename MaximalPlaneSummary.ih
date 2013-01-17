@@ -90,7 +90,7 @@ DGtal::MaximalPlaneSummary<TSpace>::
 projectOntoUpperPlane( const RealPoint & p ) const
 {
   Scalar dot = p.dot( normal );
-  return ( upper - dot ) * normal + p;
+  return normal * ( upper - dot ) + p;
 }
 //-----------------------------------------------------------------------------
 template <typename TSpace>
@@ -100,7 +100,7 @@ DGtal::MaximalPlaneSummary<TSpace>::
 projectOntoLowerPlane( const RealPoint & p ) const
 {
   Scalar dot = p.dot( normal );
-  return ( lower - dot ) * normal + p;
+  return normal * ( lower - dot ) + p;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
