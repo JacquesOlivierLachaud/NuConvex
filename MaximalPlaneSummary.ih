@@ -102,6 +102,28 @@ projectOntoLowerPlane( const RealPoint & p ) const
   Scalar dot = p.dot( normal );
   return normal * ( lower - dot ) + p;
 }
+//-----------------------------------------------------------------------------
+template <typename TSpace>
+inline
+typename DGtal::MaximalPlaneSummary<TSpace>::RealPoint
+DGtal::MaximalPlaneSummary<TSpace>::
+projectOntoPCAPlane( const RealPoint & p ) const
+{
+  Scalar dot = (p - centroid).dot( eigenvectors.column( 0 ) );
+  return RealPoint( p - dot * eigenvectors.column( 0 ) );
+}
+//-----------------------------------------------------------------------------
+template <typename TSpace>
+inline
+typename DGtal::MaximalPlaneSummary<TSpace>::RealPoint
+DGtal::MaximalPlaneSummary<TSpace>::
+projectOntoMedianPlane( const RealPoint & p ) const
+{
+  RealVector v = normal;// + eigenvectors.column( 0 );
+  //v /= v.norm();
+  Scalar dot = (p - centroid).dot( v );
+  return RealPoint( p - dot * v );
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Interface - public :

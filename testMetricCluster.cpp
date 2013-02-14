@@ -5,6 +5,8 @@
 #include "DGtal/kernel/SquaredEuclideanDistance.h"
 #include "MetricCluster.h"
 
+using namespace DGtal;
+
 template <typename Cluster>
 void
 clustering( Cluster & cluster, const std::string & name )

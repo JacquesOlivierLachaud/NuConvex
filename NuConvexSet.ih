@@ -30,6 +30,7 @@
 //////////////////////////////////////////////////////////////////////////////
 #include <cstdlib>
 #include <algorithm>
+#include "EigenValues3D.h"
 //////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -69,7 +70,11 @@ DGtal::NuConvexSet<TSpace, TVisitor, TVertex2PointFunctor, TInternalInteger>::
 init( InternalInteger p, InternalInteger q,
       InternalInteger diameter )
 {
+#ifdef CHORD
+  myPlane.init( p, q );
+#else
   myPlane.init( diameter, p, q );
+#endif
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,
@@ -275,10 +280,51 @@ summarize( MaximalPlaneSummary<Space> & mps,
   myPlane.getUnitNormal( mps.normal );
   myPlane.getBounds( mps.lower, mps.upper );
   mps.projectedArea = 0.0;  /**< the area of the projected nu-convex set. */
+  // Used for computing ACP.
+  mps.nb = 0;
+  typedef typename MaximalPlaneSummary<Space>::Scalar Scalar;
+  typedef typename MaximalPlaneSummary<Space>::RealVector RealVector;
+  typedef typename MaximalPlaneSummary<Space>::RealMatrix RealMatrix;
+  RealVector sum = RealVector::zero;
+  RealMatrix squared_sum; // zero matrix
+  RealMatrix tmp; // zero matrix
   for ( ConstIterator it = begin(), itE = end(); it != itE; ++it )
     {
       mps.projectedArea += vProjector( *it, mps.normal ); 
+      Point p = coordinates( *it );
+      Scalar x = (Scalar) p[ 0 ];
+      Scalar y = (Scalar) p[ 1 ];
+      Scalar z = (Scalar) p[ 2 ];
+      Scalar xy = x * y;
+      Scalar yz = y * z;
+      Scalar xz = x * z;
+      sum[ 0 ] += x;
+      sum[ 1 ] += y;
+      sum[ 2 ] += z;
+      tmp.setComponent( 0, 0, x * x );
+      tmp.setComponent( 0, 1, xy );
+      tmp.setComponent( 0, 2, xz );
+      tmp.setComponent( 1, 0, xy );
+      tmp.setComponent( 1, 1, y * y );
+      tmp.setComponent( 1, 2, yz );
+      tmp.setComponent( 2, 0, xz );
+      tmp.setComponent( 2, 1, yz );
+      tmp.setComponent( 2, 2, z * z );
+      squared_sum += tmp;
+      ++mps.nb;
     }
+  // Compute ACP.
+  sum /= mps.nb;
+  mps.centroid = sum;
+  squared_sum /= mps.nb;
+  for ( Dimension i = 0; i < Space::dimension; ++i )
+    for ( Dimension j = 0; j < Space::dimension; ++j )
+      squared_sum.setComponent( i, j, squared_sum( i, j ) - sum[ i ] * sum[ j ] );
+  EigenValues3D::getEigenDecomposition( squared_sum, mps.eigenvectors, mps.eigenvalues );
+  ASSERT ( ( mps.eigenvalues[ 0 ] <= mps.eigenvalues[ 2 ]) 
+           && (mps.eigenvalues[ 0 ] <= mps.eigenvalues[ 1 ]) 
+           && (mps.eigenvalues[ 1 ] <= mps.eigenvalues[ 2 ]) );
+
   if ( mps.projectedArea < 0 )
     {
       typedef typename MaximalPlaneSummary<Space>::RealVector RealVector;
@@ -288,6 +334,17 @@ summarize( MaximalPlaneSummary<Space> & mps,
       mps.upper = -mps.upper;
       mps.projectedArea = -mps.projectedArea;
     }
+  if ( mps.normal.dot( mps.eigenvectors.column( 0 ) ) < 0.0 )
+    {
+      mps.eigenvectors.setComponent( 0, 0, -mps.eigenvectors( 0, 0 ) );
+      mps.eigenvectors.setComponent( 1, 0, -mps.eigenvectors( 1, 0 ) );
+      mps.eigenvectors.setComponent( 2, 0, -mps.eigenvectors( 2, 0 ) );
+    }
+  double n = mps.eigenvectors.column( 0 ).norm();
+  std::cerr << "angle=" << acos(  mps.normal.dot( mps.eigenvectors.column( 0 ) ) )
+            << " k1=" << mps.eigenvalues[ 0 ]
+            << " k2=" << mps.eigenvalues[ 1 ]
+            << " k3=" << mps.eigenvalues[ 2 ] << std::endl;
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,

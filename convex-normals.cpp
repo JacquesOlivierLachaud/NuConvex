@@ -2,13 +2,11 @@
 #include "DGtal/base/Common.h"
 #include "DGtal/base/BasicFunctors.h"
 #include "DGtal/base/Lambda2To1.h"
-#include "DGtal/kernel/SquaredEuclideanDistance.h"
 #include "DGtal/kernel/CanonicCellEmbedder.h"
 #include "DGtal/kernel/CanonicSCellEmbedder.h"
-#include "DGtal/topology/BreadthFirstVisitor.h"
-#include "DGtal/topology/DistanceVisitor.h"
+#include "DGtal/graph/BreadthFirstVisitor.h"
+#include "DGtal/graph/DistanceVisitor.h"
 #include "DGtal/topology/DigitalSurface.h"
-#include "DGtal/topology/LightImplicitDigitalSurface.h"
 #include "DGtal/topology/DigitalSetBoundary.h"
 #include "DGtal/helpers/StdDefs.h"
 #include "DGtal/io/viewers/Viewer3D.h"
@@ -24,10 +22,11 @@
 #include "MetricCluster.h"
 #include "FuzzyPartition.h"
 
+using namespace DGtal;
 
 static const bool ColorAccordingToNbMP = false;
 static const bool ColorAccordingToNbClusters = false;
-static const bool ColorAccordingToRandom = false; // for seeing the partition
+static const bool ColorAccordingToRandom = true; // for seeing the partition
 static const bool MarkPartitionBoundaries = true; // for seeing the partition boundaries.
 static const bool FuzzyPartitioning = true;
 static const bool OutputOFFSurface = true;
@@ -697,7 +696,7 @@ int main( int argc, char** argv )
   trace.beginBlock( "Reading vol file into an image." );
   Image image = VolReader<Image>::importVol(inputFilename);
   DigitalSet set3d (image.domain());
-  SetPredicate<DigitalSet> set3dPredicate( set3d );
+  // SetPredicate<DigitalSet> set3dPredicate( set3d );
   SetFromImage<DigitalSet>::append<Image>(set3d, image, 
                                           minThreshold, maxThreshold);
   trace.endBlock();
@@ -724,12 +723,6 @@ int main( int argc, char** argv )
   trace.beginBlock( "Set up digital surface." );
   MyDigitalSurfaceContainer* ptrSurfContainer = 
     new MyDigitalSurfaceContainer( ks, set3d, surfAdj );
-  // typedef LightImplicitDigitalSurface<KSpace, SetPredicate<DigitalSet> > 
-  //   MyDigitalSurfaceContainer;
-  // typedef DigitalSurface<MyDigitalSurfaceContainer> MyDigitalSurface;
-  // SCell bel = Surfaces<KSpace>::findABel( ks, set3dPredicate, 100000 );
-  // MyDigitalSurfaceContainer* ptrSurfContainer = 
-  //   new MyDigitalSurfaceContainer( ks, set3dPredicate, surfAdj, bel );
   MyDigitalSurface digSurf( ptrSurfContainer ); // acquired
   trace.endBlock();
   //! [convex-normals-SetUpDigitalSurface]

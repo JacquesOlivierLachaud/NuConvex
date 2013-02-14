@@ -40,9 +40,14 @@
 
 //////////////////////////////////////////////////////////////////////////////
 // Inclusions
+//#define CHORD
 #include <iostream>
 #include "DGtal/base/Common.h"
+#ifdef CHORD
+#include "DGtal/geometry/surfaces/ChordGenericNaivePlane.h"
+#else
 #include "DGtal/geometry/surfaces/COBAGenericNaivePlane.h"
+#endif
 #include "BasicHPolytopeND.h"
 #include "MaximalPlaneSummary.h"
 //////////////////////////////////////////////////////////////////////////////
@@ -80,7 +85,11 @@ namespace DGtal
 
     BOOST_STATIC_ASSERT(( ConceptUtils::SameType
 			   < Vertex, typename Vertex2PointFunctor::Argument >::value ));
+#ifdef CHORD
+    typedef ChordGenericNaivePlane< typename Space::Point, InternalInteger > GenericNaivePlane;
+#else
     typedef COBAGenericNaivePlane< Space, InternalInteger > GenericNaivePlane;
+#endif
     typedef typename Vertex2PointFunctor::Value Point;
     typedef typename Point::Coordinate Scalar;
     typedef Point Vector;

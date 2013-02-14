@@ -119,7 +119,7 @@ compute( unsigned int nbMaxPerVertex, bool extensionMode )
       if ( ( i % 100 ) == 0 )
         trace.progressBar( (double) i, (double) size );
       Vertex p = *it;
-      SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
+      SqEDToPoint distanceToPoint = std::bind1st( sqed, coordinates( p ) );
       VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
       MyNuConvexSet nuConvex( Visitor( surface(), vfunctor, p ), *myVtx2PtFct );
       nuConvex.setExtensionMode( extensionMode );
@@ -177,7 +177,7 @@ computeOnce( unsigned int nbMaxPerVertex, bool extensionMode )
         trace.progressBar( (double) i, (double) size );
       // Computes the maximal plane for this vertex.
       Vertex p = *it;
-      SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
+      SqEDToPoint distanceToPoint = std::bind1st( sqed, coordinates( p ) );
       VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
       MyNuConvexSet* & nuConvex = tableNuConvexSets[ mp ];
       nuConvex = new MyNuConvexSet( Visitor( surface(), vfunctor, p ), *myVtx2PtFct );
@@ -327,7 +327,7 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
 
       // Computes the maximal plane for this vertex.
       Vertex p = *it;
-      SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
+      SqEDToPoint distanceToPoint = std::bind1st( sqed, coordinates( p ) );
       VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
       MyNuConvexSet* & nuConvex = tableNuConvexSets[ mp ];
       nuConvex = new MyNuConvexSet( Visitor( surface(), vfunctor, p ), *myVtx2PtFct );
@@ -360,7 +360,7 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
               Index otherMP = *itMPI; // no need to call father( *itMPI ) after cleaning.
               // Computes the maximal plane for this vertex.
               Vertex otherP = myTableVertex[ otherMP ];
-              SqEDToPoint distanceToPoint( sqed, coordinates( otherP ) );
+              SqEDToPoint distanceToPoint = std::bind1st( sqed, coordinates( p ) );
               VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
               MyNuConvexSet* & otherNuConvex = tableNuConvexSets[ otherMP ];
               if ( otherNuConvex == 0 )
@@ -435,7 +435,7 @@ computeOnceMemoryLess( unsigned int nbMaxPerVertex, bool extensionMode,
           if ( tableNuConvexSets[ mp ] == 0 )
             {
               Vertex p = myTableVertex[ mp ];
-              SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
+              SqEDToPoint distanceToPoint = std::bind1st( sqed, coordinates( p ) );
               VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
               MyNuConvexSet* & nuConvex = tableNuConvexSets[ mp ];
               nuConvex = new MyNuConvexSet( Visitor( surface(), vfunctor, p ), *myVtx2PtFct );
@@ -488,7 +488,8 @@ computeOnceV2( unsigned int nbMaxPerVertex, bool extensionMode )
         trace.progressBar( (double) i, (double) size );
       // Computes the maximal plane for this vertex.
       Vertex p = *it;
-      SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
+      SqEDToPoint distanceToPoint = std::bind1st( sqed, coordinates( p ) );
+      // SqEDToPoint distanceToPoint( sqed, coordinates( p ) );
       VertexFunctor vfunctor( *myVtx2PtFct, distanceToPoint );
       MyNuConvexSet* & nuConvex = tableNuConvexSets[ mp ];
       nuConvex = new MyNuConvexSet( Visitor( surface(), vfunctor, p ), *myVtx2PtFct );
@@ -659,18 +660,31 @@ getEstimatedProjection( RealVector & n, Vertex p,
   ASSERT( coefs.size() >= mpsi.size() );
   n.reset();
   unsigned int i = 0;
-  RealVector x1, x2;
+  RealVector x1;
   Scalar sum = 0;
   for ( typename MaximalPlaneSummaryIndices::const_iterator 
 	  it = mpsi.begin(), it_end = mpsi.end();
 	it != it_end; ++it, ++i )
     {
-      x1 = myMPSTable[ *it ].projectOntoUpperPlane( x );
-      x2 = myMPSTable[ *it ].projectOntoLowerPlane( x );
-      n += ( x1 * alpha + x2 * (1.0-alpha) ) * coefs[ i ];
+      x1 = myMPSTable[ *it ].projectOntoMedianPlane( x );
+      // x1 = myMPSTable[ *it ].projectOntoPCAPlane( x );
+      n += x1 * coefs[ i ];
       sum += coefs[ i ];
     }
   n /= sum;
+  // unsigned int i = 0;
+  // RealVector x1, x2;
+  // Scalar sum = 0;
+  // for ( typename MaximalPlaneSummaryIndices::const_iterator 
+  //         it = mpsi.begin(), it_end = mpsi.end();
+  //       it != it_end; ++it, ++i )
+  //   {
+  //     x1 = myMPSTable[ *it ].projectOntoUpperPlane( x );
+  //     x2 = myMPSTable[ *it ].projectOntoLowerPlane( x );
+  //     n += ( x1 * alpha + x2 * (1.0-alpha) ) * coefs[ i ];
+  //     sum += coefs[ i ];
+  //   }
+  // n /= sum;
 }
 //-----------------------------------------------------------------------------
 template <typename TDigitalSurface, typename TVertex2PointFunctor,

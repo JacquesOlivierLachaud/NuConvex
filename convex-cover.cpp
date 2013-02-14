@@ -2,10 +2,10 @@
 #include "DGtal/base/Common.h"
 #include "DGtal/base/BasicFunctors.h"
 #include "DGtal/base/Lambda2To1.h"
-#include "DGtal/kernel/SquaredEuclideanDistance.h"
+#include "DGtal/geometry/volumes/distance/ExactPredicateLpSeparableMetric.h"
 #include "DGtal/kernel/CanonicSCellEmbedder.h"
-#include "DGtal/topology/BreadthFirstVisitor.h"
-#include "DGtal/topology/DistanceVisitor.h"
+#include "DGtal/graph/BreadthFirstVisitor.h"
+#include "DGtal/graph/DistanceVisitor.h"
 #include "DGtal/topology/DigitalSurface.h"
 #include "DGtal/topology/LightImplicitDigitalSurface.h"
 #include "DGtal/helpers/StdDefs.h"
@@ -15,6 +15,8 @@
 #include "BasicHPolytopeND.h"
 #include "NuConvexSet.h"
 #include "DigitalSurface2InnerPointFunctor.h"
+
+using namespace DGtal;
 
 template <typename TVector>
 bool viewHPolytope( Viewer3D & viewer )
@@ -79,15 +81,15 @@ bool viewNuConvexSet( Viewer3D & viewer,
   typedef typename KSpace::Space Space;
   typedef typename Space::RealPoint RealPoint;
   typedef typename RealPoint::Coordinate Scalar;
-  typedef SquaredEuclideanDistance<RealPoint> SqED;
-  typedef Lambda2To1<SqED, RealPoint, RealPoint, Scalar> SqEDToPoint;
-  typedef Composer<VertexEmbedder, SqEDToPoint, Scalar> VertexFunctor;
+  typedef ExactPredicateLpSeparableMetric<Space,2> Distance;
+  typedef std::binder1st< Distance > DistanceToPoint; 
+  typedef Composer<VertexEmbedder, DistanceToPoint, Scalar> VertexFunctor;
   typedef DistanceVisitor< Graph, VertexFunctor > Visitor;
 
   typedef NuConvexSet< Space, Visitor, VertexEmbedder, DGtal::int64_t > MyNuConvexSet;
   
-  SqED sqed;
-  SqEDToPoint distanceToPoint( sqed, embedder( p ) );
+  Distance distance;
+  DistanceToPoint distanceToPoint = std::bind1st( distance, embedder( p ) );
   VertexFunctor vfunctor( embedder, distanceToPoint );
   // DistanceVisitor< Graph, VertexFunctor > visitor( g, p, vfunctor );
   const KSpace & ks = digSurf.container().space();
@@ -150,7 +152,7 @@ int main( int argc, char** argv )
   typedef ImageSelector < Domain, int>::Type Image;
   Image image = VolReader<Image>::importVol(inputFilename);
   DigitalSet set3d (image.domain());
-  SetPredicate<DigitalSet> set3dPredicate( set3d );
+  //  SetPredicate<DigitalSet> set3dPredicate( set3d );
   SetFromImage<DigitalSet>::append<Image>(set3d, image, 
                                           minThreshold, maxThreshold);
   trace.endBlock();
@@ -176,12 +178,12 @@ int main( int argc, char** argv )
 
   //! [volDistanceTraversal-SetUpDigitalSurface]
   trace.beginBlock( "Set up digital surface." );
-  typedef LightImplicitDigitalSurface<KSpace, SetPredicate<DigitalSet> > 
+  typedef LightImplicitDigitalSurface<KSpace, DigitalSet > 
     MyDigitalSurfaceContainer;
   typedef DigitalSurface<MyDigitalSurfaceContainer> MyDigitalSurface;
-  SCell bel = Surfaces<KSpace>::findABel( ks, set3dPredicate, 100000 );
+  SCell bel = Surfaces<KSpace>::findABel( ks, set3d, 100000 );
   MyDigitalSurfaceContainer* ptrSurfContainer = 
-    new MyDigitalSurfaceContainer( ks, set3dPredicate, surfAdj, bel );
+    new MyDigitalSurfaceContainer( ks, set3d, surfAdj, bel );
   MyDigitalSurface digSurf( ptrSurfContainer ); // acquired
   trace.endBlock();
   //! [volDistanceTraversal-SetUpDigitalSurface]

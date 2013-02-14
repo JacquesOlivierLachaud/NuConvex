@@ -43,6 +43,7 @@
 #include <iostream>
 #include "DGtal/base/Common.h"
 #include "DGtal/kernel/CSpace.h"
+#include "DGtal/kernel/SimpleMatrix.h"
 //////////////////////////////////////////////////////////////////////////////
 
 namespace DGtal
@@ -76,7 +77,9 @@ namespace DGtal
     typedef typename Space::Vector Vector;
     typedef typename Space::RealPoint RealPoint;
     typedef typename Space::RealVector RealVector;
+    typedef typename Space::Size Size;
     typedef typename RealVector::Component Scalar;
+    typedef SimpleMatrix< Scalar, 3, 3 > RealMatrix;
     
     // ------------------------- Public Datas ------------------------------
   public:
@@ -88,7 +91,10 @@ namespace DGtal
     Scalar upper;          /**< upper plane offset: normal.x = upper */
     Scalar lower;          /**< lower plane offset: normal.x = lower */
     Scalar projectedArea;  /**< the area of the projected nu-convex set. */
-  
+    Size nb;               /**< the number of points. */
+    RealVector centroid;   /**< the centroid of the maximal plane. */
+    RealVector eigenvalues;/**< the eigenvalues of the covariance matrix. */
+    RealMatrix eigenvectors;/**< the eigenvectors of the covariance matrix. */
 
     // ----------------------- Standard services ------------------------------
   public:
@@ -127,6 +133,13 @@ namespace DGtal
        @return the projection of point \a p onto the lower plane of the maximal plane.
     */
     RealPoint projectOntoLowerPlane( const RealPoint & p ) const;
+
+    /**
+       @param p any point in the space.
+       @return the projection of point \a p onto the PCA plane.
+    */
+    RealPoint projectOntoPCAPlane( const RealPoint & p ) const;
+    RealPoint projectOntoMedianPlane( const RealPoint & p ) const;
 
     // ----------------------- Interface --------------------------------------
   public:
