@@ -341,10 +341,10 @@ summarize( MaximalPlaneSummary<Space> & mps,
       mps.eigenvectors.setComponent( 2, 0, -mps.eigenvectors( 2, 0 ) );
     }
   double n = mps.eigenvectors.column( 0 ).norm();
-  std::cerr << "angle=" << acos(  mps.normal.dot( mps.eigenvectors.column( 0 ) ) )
-            << " k1=" << mps.eigenvalues[ 0 ]
-            << " k2=" << mps.eigenvalues[ 1 ]
-            << " k3=" << mps.eigenvalues[ 2 ] << std::endl;
+  // std::cerr << "angle=" << acos(  mps.normal.dot( mps.eigenvectors.column( 0 ) ) )
+  //           << " k1=" << mps.eigenvalues[ 0 ]
+  //           << " k2=" << mps.eigenvalues[ 1 ]
+  //           << " k3=" << mps.eigenvalues[ 2 ] << std::endl;
 }
 //-----------------------------------------------------------------------------
 template < typename TSpace, typename TVisitor,

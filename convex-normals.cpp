@@ -1,9 +1,9 @@
-#include <QtGui/qapplication.h>
+//#include <QtGui/qapplication.h>
 #include "DGtal/base/Common.h"
 #include "DGtal/base/BasicFunctors.h"
-#include "DGtal/base/Lambda2To1.h"
-#include "DGtal/kernel/CanonicCellEmbedder.h"
-#include "DGtal/kernel/CanonicSCellEmbedder.h"
+//#include "DGtal/base/Lambda2To1.h"
+#include "DGtal/topology/CanonicCellEmbedder.h"
+#include "DGtal/topology/CanonicSCellEmbedder.h"
 #include "DGtal/graph/BreadthFirstVisitor.h"
 #include "DGtal/graph/DistanceBreadthFirstVisitor.h"
 #include "DGtal/topology/DigitalSurface.h"
@@ -48,20 +48,25 @@ public:
 
   typedef std::map< SCell, RealPoint > Map;
 
-  inline Map2SCellEmbedderAdapter( const Map & aMap )
-    : myMap( &aMap )
+  const KSpace* myK;
+
+  inline Map2SCellEmbedderAdapter( const KSpace& K, const Map & aMap )
+    : myK( &K), myMap( &aMap )
   {}
   inline Map2SCellEmbedderAdapter( const Map2SCellEmbedderAdapter & other )
-    : myMap( other.myMap )
+    : myK( other.myK ), myMap( other.myMap )
   {}
   inline
   Map2SCellEmbedderAdapter&
   operator=( const Map2SCellEmbedderAdapter & other )
   {
+    myK   = other.myK;
     myMap = other.myMap;
     return *this;
   }
   
+  const KSpace& space() const { return *myK; }
+
   inline const Value & operator()( const Argument & arg ) const
   {
     ASSERT( myMap != 0 );
@@ -89,19 +94,24 @@ public:
 
   typedef std::map< Cell, RealPoint > Map;
 
-  inline Map2CellEmbedderAdapter( const Map & aMap )
-    : myMap( &aMap )
+  const KSpace* myK;
+
+  inline Map2CellEmbedderAdapter( const KSpace& K, const Map & aMap )
+    : myK( &K ), myMap( &aMap )
   {}
   inline Map2CellEmbedderAdapter( const Map2CellEmbedderAdapter & other )
-    : myMap( other.myMap )
+    : myK( other.myK ), myMap( other.myMap )
   {}
   inline
   Map2CellEmbedderAdapter&
   operator=( const Map2CellEmbedderAdapter & other )
   {
+    myK   = other.myK;
     myMap = other.myMap;
     return *this;
   }
+
+  const KSpace& space() const { return *myK; }
   
   inline const Value & operator()( const Argument & arg ) const
   {
@@ -131,7 +141,7 @@ exportDigitalSurfaceAs3DCOFF
   const SCellEmbedder & cellColor,
   double meshLabFactor = 100000.0 )
 {
-  BOOST_CONCEPT_ASSERT(( CSCellEmbedder< SCellEmbedder > ));
+  BOOST_CONCEPT_ASSERT(( concepts::CSCellEmbedder< SCellEmbedder > ));
 
   typedef TDigitalSurface DigitalSurface;
   typedef typename DigitalSurface::Vertex Vertex;
@@ -213,7 +223,7 @@ exportDigitalSurfaceAs3DOFF
   const SCellEmbedder & cellEmbedder,
   double meshLabFactor = 100000.0 )
 {
-  BOOST_CONCEPT_ASSERT(( CSCellEmbedder< SCellEmbedder > ));
+  BOOST_CONCEPT_ASSERT(( concepts::CSCellEmbedder< SCellEmbedder > ));
 
   typedef TDigitalSurface DigitalSurface;
   typedef typename DigitalSurface::Vertex Vertex;
@@ -567,8 +577,8 @@ outputNuConvexSetNormals( std::ostream & out,
           mapUVtx2RealPoint[ ks.unsigns( vtx ) ] = n1;
           mapVtx2RealPoint[ vtx ] = n1;
         }
-      CellEmbedder cellEmbedder( mapUVtx2RealPoint );
-      SCellEmbedder scellEmbedder( mapVtx2RealPoint );
+      CellEmbedder cellEmbedder( ks, mapUVtx2RealPoint );
+      SCellEmbedder scellEmbedder( ks, mapVtx2RealPoint );
       std::ofstream outFile( "reconstruction.off" );
       exportDigitalSurfaceAs3DOFF( outFile, digSurf, scellEmbedder );
       // digSurf.exportEmbeddedSurfaceAs3DOFF( outFile, cellEmbedder );
@@ -589,7 +599,7 @@ outputNuConvexSetNormals( std::ostream & out,
                             ((double) color.blue()) / 255.0 );
           mapVtx2Color[ it->first ] = vcolor;
         }
-      SCellEmbedder scellColor( mapVtx2Color );
+      SCellEmbedder scellColor( ks, mapVtx2Color );
       std::ofstream outFile3( "partition.off" );
       exportDigitalSurfaceAs3DCOFF( outFile3, digSurf, scellEmbedder, scellColor );
       outFile3.close();

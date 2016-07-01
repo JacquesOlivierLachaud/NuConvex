@@ -1,12 +1,12 @@
-#include <QtGui/qapplication.h>
+//#include <QtGui/qapplication.h>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
 #include "DGtal/base/Common.h"
 #include "DGtal/base/BasicFunctors.h"
-#include "DGtal/kernel/CanonicCellEmbedder.h"
-#include "DGtal/kernel/CanonicSCellEmbedder.h"
+#include "DGtal/topology/CanonicCellEmbedder.h"
+#include "DGtal/topology/CanonicSCellEmbedder.h"
 #include "DGtal/topology/DigitalSurface.h"
 #include "DGtal/topology/DigitalSetBoundary.h"
 #include "DGtal/topology/SetOfSurfels.h"
@@ -30,10 +30,11 @@
 
 using namespace DGtal;
 
-template < typename DigitalSurface,
+template < typename Viewer,
+           typename DigitalSurface,
            typename VertexEmbedder >
 void
-viewNuConvex( Viewer3D & viewer,
+viewNuConvex( Viewer & viewer,
               const DigitalSurface & digSurf,
               const VertexEmbedder & embedder,
               unsigned int idx,
@@ -52,7 +53,7 @@ viewNuConvex( Viewer3D & viewer,
   typedef SquaredEuclideanDistance<RealPoint> Distance;
   typedef typename Distance::Value Scalar;
   typedef std::binder1st< Distance > DistanceToPoint; 
-  typedef Composer<VertexEmbedder, DistanceToPoint, Scalar> VertexFunctor;
+  typedef functors::Composer<VertexEmbedder, DistanceToPoint, Scalar> VertexFunctor;
   typedef DistanceBreadthFirstVisitor< DigitalSurface, VertexFunctor > Visitor;
   typedef typename Visitor::Node MyNode;
   typedef NuConvexSet< Space, Visitor, 
@@ -99,7 +100,7 @@ viewNuConvex( Viewer3D & viewer,
              << ks.unsigns( n.first );
       visitor2.expand();
     }
-  viewer << Viewer3D::updateDisplay;
+  viewer << Viewer3D<Space,KSpace>::updateDisplay;
 }
 
 /** 
@@ -176,8 +177,7 @@ int main( int argc, char** argv )
   unsigned int nuq = (unsigned int) vm["nu_q"].as<int>();
 
   QApplication application(argc,argv);
-  Viewer3D viewer;
-  viewer.show(); 
+  Viewer3D<Space,KSpace> viewer;
 
   if ( vm.count( "polynomial" ) )
     { // The user has specified a polynomial.
@@ -232,6 +232,9 @@ int main( int argc, char** argv )
           trace.error() << "ERROR in the Khamisky space construction." << std::endl;
           return 3;
         }
+      viewer.setKSpace( K );
+      viewer.show(); 
+
       trace.beginBlock( "Extracting boundary by scanning the space. " );
       MySetOfSurfels theSetOfSurfels( K, surfAdj );
       Surfaces<KSpace>::sMakeBoundary( theSetOfSurfels.surfelSet(),
@@ -274,6 +277,8 @@ int main( int argc, char** argv )
           return 2;
         }
       trace.endBlock();
+      viewer.setKSpace( K );
+      viewer.show(); 
       trace.beginBlock( "Set up digital surface." );
       MyDigitalSurfaceContainer surfContainer( K, surfAdj );
       MyDigitalSurface::Vertex bel = Surfaces<KSpace>::findABel( K, set3d, 100000 );

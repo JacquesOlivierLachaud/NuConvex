@@ -2,7 +2,7 @@
 #include <vector>
 #include "DGtal/base/Common.h"
 #include "DGtal/helpers/StdDefs.h"
-#include "DGtal/kernel/SquaredEuclideanDistance.h"
+#include "SquaredEuclideanDistance.h"
 #include "MetricCluster.h"
 
 using namespace DGtal;
