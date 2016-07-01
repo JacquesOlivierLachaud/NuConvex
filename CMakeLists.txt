@@ -1,7 +1,7 @@
 PROJECT(NuConvex)
 
 #Required in DGtal
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+cmake_minimum_required (VERSION 2.6) 
 
 FIND_PACKAGE(DGtal 0.6 REQUIRED)
 INCLUDE_DIRECTORIES(${DGTAL_INCLUDE_DIRS})
@@ -16,3 +16,5 @@ TARGET_LINK_LIBRARIES(convexnormals ${DGTAL_LIBRARIES})
 ADD_EXECUTABLE(testMetricCluster testMetricCluster)
 TARGET_LINK_LIBRARIES(testMetricCluster ${DGTAL_LIBRARIES})
 
+ADD_EXECUTABLE(nu-convex-viewer nu-convex-viewer)
+TARGET_LINK_LIBRARIES(nu-convex-viewer ${DGTAL_LIBRARIES})

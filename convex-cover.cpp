@@ -1,11 +1,11 @@
-#include <QtGui/qapplication.h>
+//#include <QtGui/qapplication.h>
 #include "DGtal/base/Common.h"
 #include "DGtal/base/BasicFunctors.h"
-#include "DGtal/base/Lambda2To1.h"
+//#include "DGtal/base/Lambda2To1.h"
 #include "DGtal/geometry/volumes/distance/ExactPredicateLpSeparableMetric.h"
-#include "DGtal/kernel/CanonicSCellEmbedder.h"
+#include "DGtal/topology/CanonicSCellEmbedder.h"
 #include "DGtal/graph/BreadthFirstVisitor.h"
-#include "DGtal/graph/DistanceVisitor.h"
+#include "DGtal/graph/DistanceBreadthFirstVisitor.h"
 #include "DGtal/topology/DigitalSurface.h"
 #include "DGtal/topology/LightImplicitDigitalSurface.h"
 #include "DGtal/helpers/StdDefs.h"
@@ -18,8 +18,8 @@
 
 using namespace DGtal;
 
-template <typename TVector>
-bool viewHPolytope( Viewer3D & viewer )
+template <typename TVector, typename TViewer>
+bool viewHPolytope( TViewer & viewer )
 {
   typedef TVector Vector;
   typedef BasicHPolytopeND<TVector> HPolytope;
@@ -67,8 +67,8 @@ struct SurfelAreaEstimator
   const DigitalSurface & myDigSurf;
 };
 
-template <typename DigitalSurface, typename VertexEmbedder >
-bool viewNuConvexSet( Viewer3D & viewer,
+template <typename Viewer, typename DigitalSurface, typename VertexEmbedder >
+bool viewNuConvexSet( Viewer & viewer,
 		      const DigitalSurface & digSurf, 
 		      const VertexEmbedder & embedder,
                       unsigned int nup,
@@ -83,15 +83,15 @@ bool viewNuConvexSet( Viewer3D & viewer,
   typedef typename RealPoint::Coordinate Scalar;
   typedef ExactPredicateLpSeparableMetric<Space,2> Distance;
   typedef std::binder1st< Distance > DistanceToPoint; 
-  typedef Composer<VertexEmbedder, DistanceToPoint, Scalar> VertexFunctor;
-  typedef DistanceVisitor< Graph, VertexFunctor > Visitor;
+  typedef functors::Composer<VertexEmbedder, DistanceToPoint, Scalar> VertexFunctor;
+  typedef DistanceBreadthFirstVisitor< Graph, VertexFunctor > Visitor;
 
   typedef NuConvexSet< Space, Visitor, VertexEmbedder, DGtal::int64_t > MyNuConvexSet;
   
   Distance distance;
   DistanceToPoint distanceToPoint = std::bind1st( distance, embedder( p ) );
   VertexFunctor vfunctor( embedder, distanceToPoint );
-  // DistanceVisitor< Graph, VertexFunctor > visitor( g, p, vfunctor );
+  // DistanceBreadthFirstVisitor< Graph, VertexFunctor > visitor( g, p, vfunctor );
   const KSpace & ks = digSurf.container().space();
   MyNuConvexSet nuConvex( Visitor( digSurf, vfunctor, p ), embedder );
   nuConvex.setExtensionMode( false );
@@ -136,8 +136,6 @@ int main( int argc, char** argv )
     }
 
   QApplication application(argc,argv);
-  Viewer3D viewer;
-  viewer.show();
 
   std::string inputFilename = argv[ 1 ];
   unsigned int minThreshold = atoi( argv[ 2 ] );
@@ -171,6 +169,9 @@ int main( int argc, char** argv )
   trace.endBlock();
   //! [volDistanceTraversal-KSpace]
 
+  Viewer3D<Space,KSpace> viewer( ks );
+  viewer.show();
+  
   //! [volDistanceTraversal-SurfelAdjacency]
   typedef SurfelAdjacency<KSpace::dimension> MySurfelAdjacency;
   MySurfelAdjacency surfAdj( true ); // interior in all directions.
@@ -207,7 +208,7 @@ int main( int argc, char** argv )
 
   // typedef SpaceND<3>::Vector Vector;
   // bool ok = viewHPolytope<Vector>( viewer );
-  viewer<< Viewer3D::updateDisplay;
+  viewer<< Viewer3D<Space,KSpace>::updateDisplay;
   application.exec();
   return true ? 0 : 1;
 }

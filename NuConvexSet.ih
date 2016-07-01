@@ -30,7 +30,7 @@
 //////////////////////////////////////////////////////////////////////////////
 #include <cstdlib>
 #include <algorithm>
-#include "EigenValues3D.h"
+#include "DGtal/math/linalg/EigenDecomposition.h"
 //////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -320,7 +320,7 @@ summarize( MaximalPlaneSummary<Space> & mps,
   for ( Dimension i = 0; i < Space::dimension; ++i )
     for ( Dimension j = 0; j < Space::dimension; ++j )
       squared_sum.setComponent( i, j, squared_sum( i, j ) - sum[ i ] * sum[ j ] );
-  EigenValues3D::getEigenDecomposition( squared_sum, mps.eigenvectors, mps.eigenvalues );
+  EigenDecomposition<Space::dimension,double>::getEigenDecomposition( squared_sum, mps.eigenvectors, mps.eigenvalues );
   ASSERT ( ( mps.eigenvalues[ 0 ] <= mps.eigenvalues[ 2 ]) 
            && (mps.eigenvalues[ 0 ] <= mps.eigenvalues[ 1 ]) 
            && (mps.eigenvalues[ 1 ] <= mps.eigenvalues[ 2 ]) );

@@ -5,7 +5,7 @@
 #include "DGtal/kernel/CanonicCellEmbedder.h"
 #include "DGtal/kernel/CanonicSCellEmbedder.h"
 #include "DGtal/graph/BreadthFirstVisitor.h"
-#include "DGtal/graph/DistanceVisitor.h"
+#include "DGtal/graph/DistanceBreadthFirstVisitor.h"
 #include "DGtal/topology/DigitalSurface.h"
 #include "DGtal/topology/DigitalSetBoundary.h"
 #include "DGtal/helpers/StdDefs.h"
@@ -312,7 +312,7 @@ void outputCellInColorWithNormal( std::ostream & out,
       << ' ' << ((double)color.green())/255.0
       << ' ' << ((double)color.blue())/255.0
       << ' ' << n[ 0 ] << ' ' << n[ 1 ] << ' ' << n[ 2 ]
-      << endl;
+      << std::endl;
 }
 
 template <typename KSpace>
@@ -381,7 +381,7 @@ struct SurfelAreaEstimator
 template < typename DigitalSurface, 
            typename VertexEmbedder >
 void 
-outputNuConvexSetNormals( ostream & out,
+outputNuConvexSetNormals( std::ostream & out,
                           const DigitalSurface & digSurf, 
                           const VertexEmbedder & embedder,
                           unsigned int nup,
@@ -569,11 +569,11 @@ outputNuConvexSetNormals( ostream & out,
         }
       CellEmbedder cellEmbedder( mapUVtx2RealPoint );
       SCellEmbedder scellEmbedder( mapVtx2RealPoint );
-      ofstream outFile( "reconstruction.off" );
+      std::ofstream outFile( "reconstruction.off" );
       exportDigitalSurfaceAs3DOFF( outFile, digSurf, scellEmbedder );
       // digSurf.exportEmbeddedSurfaceAs3DOFF( outFile, cellEmbedder );
       outFile.close();
-      ofstream outFile2( "origin.off" );
+      std::ofstream outFile2( "origin.off" );
       exportDigitalSurfaceAs3DOFF( outFile2, digSurf, canonicSCellEmbedder );
       // digSurf.exportEmbeddedSurfaceAs3DOFF( outFile2, canonicCellEmbedder );
       outFile2.close();
@@ -590,7 +590,7 @@ outputNuConvexSetNormals( ostream & out,
           mapVtx2Color[ it->first ] = vcolor;
         }
       SCellEmbedder scellColor( mapVtx2Color );
-      ofstream outFile3( "partition.off" );
+      std::ofstream outFile3( "partition.off" );
       exportDigitalSurfaceAs3DCOFF( outFile3, digSurf, scellEmbedder, scellColor );
       outFile3.close();
       trace.endBlock();
@@ -728,7 +728,7 @@ int main( int argc, char** argv )
   //! [convex-normals-SetUpDigitalSurface]
 
   VertexEmbedder embedder( digSurf );
-  ofstream outFile( "titi.txt" );
+  std::ofstream outFile( "titi.txt" );
   outputNuConvexSetNormals( outFile, digSurf, embedder, p, q, nbMax, 
                             ratio, simthreshold );
   outFile.close();

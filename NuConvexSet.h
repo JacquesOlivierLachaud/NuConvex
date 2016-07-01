@@ -44,9 +44,9 @@
 #include <iostream>
 #include "DGtal/base/Common.h"
 #ifdef CHORD
-#include "DGtal/geometry/surfaces/ChordGenericNaivePlane.h"
+#include "DGtal/geometry/surfaces/ChordGenericNaivePlaneComputer.h"
 #else
-#include "DGtal/geometry/surfaces/COBAGenericNaivePlane.h"
+#include "DGtal/geometry/surfaces/COBAGenericNaivePlaneComputer.h"
 #endif
 #include "BasicHPolytopeND.h"
 #include "MaximalPlaneSummary.h"
@@ -83,12 +83,12 @@ namespace DGtal
     typedef TVertex2PointFunctor Vertex2PointFunctor;
     typedef typename Visitor::Vertex Vertex;
 
-    BOOST_STATIC_ASSERT(( ConceptUtils::SameType
+  BOOST_STATIC_ASSERT(( concepts::ConceptUtils::SameType
 			   < Vertex, typename Vertex2PointFunctor::Argument >::value ));
 #ifdef CHORD
-    typedef ChordGenericNaivePlane< typename Space::Point, InternalInteger > GenericNaivePlane;
+    typedef ChordGenericNaivePlaneComputer< typename Space::Point, InternalInteger > GenericNaivePlaneComputer;
 #else
-    typedef COBAGenericNaivePlane< Space, InternalInteger > GenericNaivePlane;
+    typedef COBAGenericNaivePlaneComputer< Space, InternalInteger > GenericNaivePlaneComputer;
 #endif
     typedef typename Vertex2PointFunctor::Value Point;
     typedef typename Point::Coordinate Scalar;
@@ -253,7 +253,7 @@ namespace DGtal
 
     Visitor* myVisitor;
     const Vertex2PointFunctor* myVtx2PointFct;
-    GenericNaivePlane myPlane;
+    GenericNaivePlaneComputer myPlane;
     HPolytope myPolytope;
     VertexPolytopePredicateAdapter myVertexPolytopePredicate;
     Container myVertices;

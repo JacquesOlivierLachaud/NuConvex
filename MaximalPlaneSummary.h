@@ -43,7 +43,7 @@
 #include <iostream>
 #include "DGtal/base/Common.h"
 #include "DGtal/kernel/CSpace.h"
-#include "DGtal/kernel/SimpleMatrix.h"
+#include "DGtal/math/linalg/SimpleMatrix.h"
 //////////////////////////////////////////////////////////////////////////////
 
 namespace DGtal
@@ -69,7 +69,7 @@ namespace DGtal
   struct MaximalPlaneSummary
   {
   public:
-    BOOST_CONCEPT_ASSERT(( CSpace< TSpace > ));
+    BOOST_CONCEPT_ASSERT(( concepts::CSpace< TSpace > ));
     // BOOST_STATIC_ASSERT(( TSpace::dimension == 3 ));
 
     typedef TSpace Space;

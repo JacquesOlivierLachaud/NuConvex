@@ -46,7 +46,8 @@
 #include "DGtal/base/BasicFunctors.h"
 #include "DGtal/base/Lambda2To1.h"
 #include "DGtal/geometry/volumes/distance/ExactPredicateLpSeparableMetric.h"
-#include "DGtal/graph/DistanceVisitor.h"
+#include "DGtal/graph/DistanceBreadthFirstVisitor.h"
+#include "DGtal/graph/BreadthFirstVisitor.h"
 #include "MaximalPlaneSummary.h"
 #include "NuConvexSet.h"
 #include "SquaredEuclideanDistance.h"
@@ -97,7 +98,7 @@ namespace DGtal
     typedef SquaredEuclideanDistance<RealPoint> SqED;
     typedef std::binder1st< SqED > SqEDToPoint; 
     typedef Composer<Vertex2PointFunctor, SqEDToPoint, Scalar> VertexFunctor;
-    typedef DistanceVisitor< Graph, VertexFunctor > Visitor;
+    typedef DistanceBreadthFirstVisitor< Graph, VertexFunctor > Visitor;
     typedef NuConvexSet< Space, Visitor, 
                          Vertex2PointFunctor, DGtal::int64_t > MyNuConvexSet;
 

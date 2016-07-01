@@ -245,7 +245,7 @@ private:
     for  (int l = 0; l < dimension; ++l )
     {
       // Find small subdiagonal element
-      tst1 = max ( tst1, fabs ( d[ l ] ) + fabs( e[ l ] ));
+      tst1 = std::max ( tst1, fabs ( d[ l ] ) + fabs( e[ l ] ));
       int m = l;
       while ( m < dimension )
       {
